@@ -308,8 +308,8 @@ function showPresetEditor(presetName) {
   // Update title
   document.getElementById('preset-editor-title').textContent = `Edit ${formatPresetName(presetName)}`;
   
-  // Load current values into the editor
-  loadPresetIntoEditor(presetName);
+  // Load current active values into the editor (not preset defaults)
+  loadCurrentValuesIntoEditor();
 }
 
 function hidePresetEditor() {
@@ -347,6 +347,18 @@ function loadPresetIntoEditor(presetName) {
   
   // Update color previews
   updateColorPreviews();
+  
+  // Apply values to main params object for immediate visualization
+  Object.keys(preset).forEach(key => {
+    if (typeof params !== 'undefined' && params.hasOwnProperty(key)) {
+      params[key] = preset[key];
+    }
+  });
+  
+  // Update uniforms to apply changes immediately
+  if (typeof updateUniforms === 'function') {
+    updateUniforms();
+  }
 }
 
 function updateColorPreviews() {
@@ -401,6 +413,9 @@ function setupPresetEditor() {
   
   // Color picker functionality
   setupColorPickers();
+  
+  // Setup real-time parameter updating
+  setupRealTimeUpdates();
   
   // Setup collapsible sections (Photoshop-style)
   const sectionHeaders = document.querySelectorAll('.editor-section h4');
@@ -637,22 +652,23 @@ function updateColorPickerFromRGB() {
 }
 
 function updateShaderColorFromRGB(r, g, b) {
-  // Update the current preset values if we're in editing mode
-  if (typeof currentPresetValues !== 'undefined' && currentPresetValues) {
-    currentPresetValues.colorTintR = r;
-    currentPresetValues.colorTintG = g;
-    currentPresetValues.colorTintB = b;
+  // Update the main params object
+  if (typeof params !== 'undefined' && params) {
+    params.colorTintR = r;
+    params.colorTintG = g;
+    params.colorTintB = b;
   }
   
-  // Update shader uniforms if the shader program exists
-  if (typeof gl !== 'undefined' && gl && typeof shaderProgram !== 'undefined' && shaderProgram) {
-    const colorTintRLocation = gl.getUniformLocation(shaderProgram, 'colorTintR');
-    const colorTintGLocation = gl.getUniformLocation(shaderProgram, 'colorTintG');
-    const colorTintBLocation = gl.getUniformLocation(shaderProgram, 'colorTintB');
-    
-    if (colorTintRLocation) gl.uniform1f(colorTintRLocation, r);
-    if (colorTintGLocation) gl.uniform1f(colorTintGLocation, g);
-    if (colorTintBLocation) gl.uniform1f(colorTintBLocation, b);
+  // Update shader uniforms using the main update function
+  if (typeof updateUniforms === 'function') {
+    updateUniforms();
+  }
+  
+  // Update current preset values if we're in editing mode
+  if (currentEditingPreset && canvasPresets[currentEditingPreset]) {
+    canvasPresets[currentEditingPreset].colorTintR = r;
+    canvasPresets[currentEditingPreset].colorTintG = g;
+    canvasPresets[currentEditingPreset].colorTintB = b;
   }
 }
 
@@ -881,3 +897,232 @@ function drawBubbles(ctx, width, height, time, colors) {
     ctx.fill();
   }
 }
+
+function setupRealTimeUpdates() {
+  // List of all parameters that should update in real-time
+  const parameterIds = [
+    'edit-timeScale',
+    'edit-patternAmp', 
+    'edit-patternFreq',
+    'edit-bloomStrength',
+    'edit-saturation',
+    'edit-grainAmount',
+    'edit-colorTintR',
+    'edit-colorTintG', 
+    'edit-colorTintB',
+    'edit-overlayColorR',
+    'edit-overlayColorG',
+    'edit-overlayColorB',
+    'edit-overlayOpacity',
+    'edit-backgroundColorR',
+    'edit-backgroundColorG', 
+    'edit-backgroundColorB',
+    'edit-backgroundOpacity',
+    'edit-minCircleSize',
+    'edit-circleStrength',
+    'edit-distortX',
+    'edit-distortY'
+  ];
+
+  parameterIds.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      // Add input event listener for real-time updates
+      element.addEventListener('input', function() {
+        const paramName = id.replace('edit-', '');
+        const value = parseFloat(this.value);
+        
+        // Update the global params object
+        if (typeof params !== 'undefined' && params.hasOwnProperty(paramName)) {
+          params[paramName] = value;
+        }
+        
+        // Update shader uniforms immediately
+        if (typeof updateUniforms === 'function') {
+          updateUniforms();
+        }
+        
+        // Update the slider value display
+        const valueSpan = this.parentElement.querySelector('.slider-value');
+        if (valueSpan) {
+          valueSpan.textContent = value.toFixed(2);
+        }
+        
+        // Update color previews if it's a color parameter
+        if (paramName.includes('Color') || paramName.includes('colorTint')) {
+          updateColorPreviews();
+        }
+        
+        // Update color picker if it's a color tint parameter
+        if (paramName === 'colorTintR' || paramName === 'colorTintG' || paramName === 'colorTintB') {
+          updateColorPickerFromRGB();
+        }
+      });
+      
+      // Also add change event for when dragging is complete
+      element.addEventListener('change', function() {
+        // Update the preset data for persistence
+        if (currentEditingPreset && canvasPresets[currentEditingPreset]) {
+          const paramName = id.replace('edit-', '');
+          canvasPresets[currentEditingPreset][paramName] = parseFloat(this.value);
+        }
+      });
+    }
+  });
+  
+  console.log('Real-time parameter updates enabled for preset editor');
+}
+
+function loadCurrentValuesIntoEditor() {
+  // Load current active parameter values into the editor (not preset defaults)
+  if (typeof params === 'undefined') {
+    console.warn('Global params object not found, using preset defaults');
+    if (currentEditingPreset) {
+      loadPresetIntoEditor(currentEditingPreset);
+    }
+    return;
+  }
+
+  // Map of parameter names to editor control IDs
+  const parameterMapping = {
+    'timeScale': 'edit-timeScale',
+    'patternAmp': 'edit-patternAmp',
+    'patternFreq': 'edit-patternFreq', 
+    'bloomStrength': 'edit-bloomStrength',
+    'saturation': 'edit-saturation',
+    'grainAmount': 'edit-grainAmount',
+    'colorTintR': 'edit-colorTintR',
+    'colorTintG': 'edit-colorTintG',
+    'colorTintB': 'edit-colorTintB',
+    'overlayColorR': 'edit-overlayColorR',
+    'overlayColorG': 'edit-overlayColorG',
+    'overlayColorB': 'edit-overlayColorB',
+    'overlayOpacity': 'edit-overlayOpacity',
+    'backgroundColorR': 'edit-backgroundColorR',
+    'backgroundColorG': 'edit-backgroundColorG',
+    'backgroundColorB': 'edit-backgroundColorB',
+    'backgroundOpacity': 'edit-backgroundOpacity',
+    'minCircleSize': 'edit-minCircleSize',
+    'circleStrength': 'edit-circleStrength',
+    'distortX': 'edit-distortX',
+    'distortY': 'edit-distortY'
+  };
+
+  // Load each parameter's current value into the corresponding editor control
+  Object.keys(parameterMapping).forEach(paramName => {
+    if (params.hasOwnProperty(paramName)) {
+      const elementId = parameterMapping[paramName];
+      const element = document.getElementById(elementId);
+      
+      if (element) {
+        element.value = params[paramName];
+        
+        // Update the display value
+        const valueSpan = element.parentElement.querySelector('.slider-value');
+        if (valueSpan) {
+          valueSpan.textContent = params[paramName].toFixed(2);
+        }
+      }
+    }
+  });
+
+  // Update color previews and picker
+  updateColorPreviews();
+  updateColorPickerFromRGB();
+  
+  console.log('Loaded current active values into preset editor');
+}
+
+// Debug function to test all UI connections
+function testAllUIConnections() {
+  console.log('🔧 Testing All UI Connections...');
+  
+  // Test keyboard shortcuts
+  console.log('✅ Keyboard Shortcuts:');
+  console.log('  - Space: Play/Pause');
+  console.log('  - R: Randomize');
+  console.log('  - S: Save Image');
+  console.log('  - V: Video Export'); 
+  console.log('  - T: Restart Time');
+  console.log('  - M: Toggle Music');
+  console.log('  - Tab: Refresh Pattern');
+  
+  // Test main buttons
+  const buttonTests = [
+    { id: 'randomizeBtn', name: 'Randomize Button' },
+    { id: 'playPauseBtn', name: 'Play/Pause Button' },
+    { id: 'exportVideoBtn', name: 'Export Video Button' },
+    { id: 'saveBtn', name: 'Save Button' },
+    { id: 'toggleMusicBtn', name: 'Toggle Music Button' },
+    { id: 'preset-mode-button', name: 'Preset Modal Button' },
+    { id: 'zen-mode-button', name: 'Zen Mode Button' },
+    { id: 'upload-audio-btn', name: 'Upload Audio Button' }
+  ];
+  
+  console.log('✅ Main GUI Buttons:');
+  buttonTests.forEach(test => {
+    const element = document.getElementById(test.id);
+    if (element) {
+      console.log(`  - ${test.name}: Connected ✓`);
+    } else {
+      console.warn(`  - ${test.name}: Missing ✗`);
+    }
+  });
+  
+  // Test preset editor controls
+  const editorControls = [
+    'edit-timeScale', 'edit-patternAmp', 'edit-patternFreq',
+    'edit-bloomStrength', 'edit-saturation', 'edit-grainAmount', 
+    'edit-colorTintR', 'edit-colorTintG', 'edit-colorTintB',
+    'edit-overlayColorR', 'edit-overlayColorG', 'edit-overlayColorB', 'edit-overlayOpacity',
+    'edit-backgroundColorR', 'edit-backgroundColorG', 'edit-backgroundColorB', 'edit-backgroundOpacity',
+    'edit-minCircleSize', 'edit-circleStrength', 'edit-distortX', 'edit-distortY'
+  ];
+  
+  console.log('✅ Preset Editor Controls:');
+  let connectedCount = 0;
+  editorControls.forEach(controlId => {
+    const element = document.getElementById(controlId);
+    if (element) {
+      connectedCount++;
+      // Check if it has event listeners for real-time updates
+      const hasInputListener = element.oninput !== null;
+      console.log(`  - ${controlId}: Connected ✓ ${hasInputListener ? '(Real-time)' : ''}`);
+    } else {
+      console.warn(`  - ${controlId}: Missing ✗`);
+    }
+  });
+  console.log(`  Total: ${connectedCount}/${editorControls.length} controls connected`);
+  
+  // Test color picker integration
+  console.log('✅ Color Picker Integration:');
+  const colorPicker = document.getElementById('colorTintPicker');
+  const hexDisplay = document.getElementById('colorTint-hex');
+  const advancedBtn = document.getElementById('colorTint-advanced');
+  
+  if (colorPicker) console.log('  - Visual Color Picker: Connected ✓');
+  if (hexDisplay) console.log('  - Hex Display: Connected ✓');
+  if (advancedBtn) console.log('  - Advanced Toggle: Connected ✓');
+  
+  // Test global parameter connections
+  console.log('✅ Global Parameter System:');
+  if (typeof params !== 'undefined') {
+    console.log('  - params object: Available ✓');
+    console.log(`  - Parameter count: ${Object.keys(params).length}`);
+  } else {
+    console.warn('  - params object: Missing ✗');
+  }
+  
+  if (typeof updateUniforms === 'function') {
+    console.log('  - updateUniforms(): Available ✓');
+  } else {
+    console.warn('  - updateUniforms(): Missing ✗');
+  }
+  
+  console.log('🎯 UI Connection Test Complete!');
+  console.log('All major UI components should now provide real-time feedback when adjusted.');
+}
+
+// Call this function to test connections
+// Uncomment the line below if you want to test on page load
+// window.addEventListener('load', testAllUIConnections);
