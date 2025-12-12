@@ -69,14 +69,65 @@
             <h3>Choose Canvas Style</h3>
             <div id="preset-grid">
                 <button class="preset-btn" data-preset="ambient">
-                    Ambient Flow
-                    <span class="preset-edit-btn" data-preset="ambient">⚙️</span>
+                    <div class="preset-thumbnail" data-preset="ambient">
+                        <canvas class="preset-preview" width="120" height="200" data-preset="ambient"></canvas>
+                    </div>
+                    <div class="preset-info">
+                        <h4>Ambient Flow</h4>
+                        <p>Smooth, ethereal movements</p>
+                        <span class="preset-edit-btn" data-preset="ambient">⚙️</span>
+                    </div>
                 </button>
-                <button class="preset-btn" data-preset="energetic">High Energy</button>
-                <button class="preset-btn" data-preset="minimal">Minimalist</button>
-                <button class="preset-btn" data-preset="abstract">Abstract Art</button>
-                <button class="preset-btn" data-preset="retro">Retro Wave</button>
-                <button class="preset-btn" data-preset="organic">Organic Shapes</button>
+                <button class="preset-btn" data-preset="energetic">
+                    <div class="preset-thumbnail" data-preset="energetic">
+                        <canvas class="preset-preview" width="120" height="200" data-preset="energetic"></canvas>
+                    </div>
+                    <div class="preset-info">
+                        <h4>High Energy</h4>
+                        <p>Dynamic, pulsing visuals</p>
+                        <span class="preset-edit-btn" data-preset="energetic">⚙️</span>
+                    </div>
+                </button>
+                <button class="preset-btn" data-preset="minimal">
+                    <div class="preset-thumbnail" data-preset="minimal">
+                        <canvas class="preset-preview" width="120" height="200" data-preset="minimal"></canvas>
+                    </div>
+                    <div class="preset-info">
+                        <h4>Minimalist</h4>
+                        <p>Clean, simple patterns</p>
+                        <span class="preset-edit-btn" data-preset="minimal">⚙️</span>
+                    </div>
+                </button>
+                <button class="preset-btn" data-preset="abstract">
+                    <div class="preset-thumbnail" data-preset="abstract">
+                        <canvas class="preset-preview" width="120" height="200" data-preset="abstract"></canvas>
+                    </div>
+                    <div class="preset-info">
+                        <h4>Abstract Art</h4>
+                        <p>Complex, artistic patterns</p>
+                        <span class="preset-edit-btn" data-preset="abstract">⚙️</span>
+                    </div>
+                </button>
+                <button class="preset-btn" data-preset="retro">
+                    <div class="preset-thumbnail" data-preset="retro">
+                        <canvas class="preset-preview" width="120" height="200" data-preset="retro"></canvas>
+                    </div>
+                    <div class="preset-info">
+                        <h4>Retro Wave</h4>
+                        <p>Nostalgic 80s-inspired visuals</p>
+                        <span class="preset-edit-btn" data-preset="retro">⚙️</span>
+                    </div>
+                </button>
+                <button class="preset-btn" data-preset="organic">
+                    <div class="preset-thumbnail" data-preset="organic">
+                        <canvas class="preset-preview" width="120" height="200" data-preset="organic"></canvas>
+                    </div>
+                    <div class="preset-info">
+                        <h4>Organic Shapes</h4>
+                        <p>Natural, flowing patterns</p>
+                        <span class="preset-edit-btn" data-preset="organic">⚙️</span>
+                    </div>
+                </button>
             </div>
             <button id="close-preset-modal">Close</button>
         </div>
@@ -158,6 +209,17 @@
                 <div class="editor-section">
                     <h4>Color Tint</h4>
                     <div class="editor-controls color-controls">
+                        <div class="control-group color-picker-group">
+                            <label>Quick Color Picker</label>
+                            <div class="color-picker-container">
+                                <input type="color" id="colorTintPicker" value="#ccccff" class="color-picker" title="Choose a color">
+                                <div class="color-details">
+                                    <span id="colorTint-hex">#ccccff</span>
+                                    <button type="button" id="colorTint-advanced" class="advanced-btn">Fine Tune</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="advanced-controls-container" id="colorTint-advanced-controls">
                         <div class="control-group">
                             <label>Red</label>
                             <div class="color-slider-container">
@@ -181,6 +243,7 @@
                                 <div class="color-preview" id="blue-preview"></div>
                                 <span class="slider-value">1.2</span>
                             </div>
+                        </div>
                         </div>
                     </div>
                 </div>

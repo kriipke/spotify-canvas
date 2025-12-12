@@ -257,6 +257,8 @@ function handleAudioUpload(file) {
 // Preset modal functionality
 function showPresetModal() {
   document.getElementById('preset-modal').classList.remove('hidden');
+  // Initialize preset thumbnails when modal is shown
+  initializePresetThumbnails();
 }
 
 function hidePresetModal() {
@@ -397,6 +399,9 @@ function setupPresetEditor() {
   // Reset button
   document.getElementById('reset-preset').addEventListener('click', resetPreset);
   
+  // Color picker functionality
+  setupColorPickers();
+  
   // Setup collapsible sections (Photoshop-style)
   const sectionHeaders = document.querySelectorAll('.editor-section h4');
   sectionHeaders.forEach(header => {
@@ -527,5 +532,352 @@ function toggleMusic(){
       const playPromise = backgroundMusic.play();
       musicPlaying = true;
     }
+  }
+}
+
+function setupColorPickers() {
+  // Color Tint Picker
+  const colorTintPicker = document.getElementById('colorTintPicker');
+  const colorTintHex = document.getElementById('colorTint-hex');
+  const advancedBtn = document.getElementById('colorTint-advanced');
+  const advancedControls = document.getElementById('colorTint-advanced-controls');
+  
+  // Color picker change handler
+  colorTintPicker.addEventListener('input', function() {
+    const hexColor = this.value;
+    const rgb = hexToRgb(hexColor);
+    
+    // Update hex display
+    colorTintHex.textContent = hexColor.toLowerCase();
+    
+    // Convert to 0-1.5 range for shader compatibility
+    const r = (rgb.r / 255) * 1.5;
+    const g = (rgb.g / 255) * 1.5;
+    const b = (rgb.b / 255) * 1.5;
+    
+    // Update RGB sliders
+    const redSlider = document.getElementById('edit-colorTintR');
+    const greenSlider = document.getElementById('edit-colorTintG');
+    const blueSlider = document.getElementById('edit-colorTintB');
+    
+    if (redSlider) {
+      redSlider.value = r.toFixed(1);
+      redSlider.nextElementSibling.nextElementSibling.textContent = r.toFixed(1);
+    }
+    if (greenSlider) {
+      greenSlider.value = g.toFixed(1);
+      greenSlider.nextElementSibling.nextElementSibling.textContent = g.toFixed(1);
+    }
+    if (blueSlider) {
+      blueSlider.value = b.toFixed(1);
+      blueSlider.nextElementSibling.nextElementSibling.textContent = b.toFixed(1);
+    }
+    
+    // Update shader uniforms if they exist
+    updateShaderColorFromRGB(r, g, b);
+  });
+  
+  // Advanced controls toggle
+  advancedBtn.addEventListener('click', function() {
+    if (advancedControls.style.display === 'none' || !advancedControls.style.display) {
+      advancedControls.style.display = 'block';
+      this.textContent = 'Hide Advanced';
+    } else {
+      advancedControls.style.display = 'none';
+      this.textContent = 'Fine Tune';
+    }
+  });
+  
+  // Update color picker when RGB sliders change
+  const rgbSliders = ['edit-colorTintR', 'edit-colorTintG', 'edit-colorTintB'];
+  rgbSliders.forEach(sliderId => {
+    const slider = document.getElementById(sliderId);
+    if (slider) {
+      slider.addEventListener('input', function() {
+        updateColorPickerFromRGB();
+      });
+    }
+  });
+}
+
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+function rgbToHex(r, g, b) {
+  // Convert from 0-1.5 range back to 0-255
+  const red = Math.round((r / 1.5) * 255);
+  const green = Math.round((g / 1.5) * 255);
+  const blue = Math.round((b / 1.5) * 255);
+  
+  return "#" + ((1 << 24) + (red << 16) + (green << 8) + blue).toString(16).slice(1);
+}
+
+function updateColorPickerFromRGB() {
+  const redSlider = document.getElementById('edit-colorTintR');
+  const greenSlider = document.getElementById('edit-colorTintG');
+  const blueSlider = document.getElementById('edit-colorTintB');
+  const colorPicker = document.getElementById('colorTintPicker');
+  const hexDisplay = document.getElementById('colorTint-hex');
+  
+  if (redSlider && greenSlider && blueSlider && colorPicker) {
+    const r = parseFloat(redSlider.value);
+    const g = parseFloat(greenSlider.value);
+    const b = parseFloat(blueSlider.value);
+    
+    const hexColor = rgbToHex(r, g, b);
+    colorPicker.value = hexColor;
+    hexDisplay.textContent = hexColor.toLowerCase();
+  }
+}
+
+function updateShaderColorFromRGB(r, g, b) {
+  // Update the current preset values if we're in editing mode
+  if (typeof currentPresetValues !== 'undefined' && currentPresetValues) {
+    currentPresetValues.colorTintR = r;
+    currentPresetValues.colorTintG = g;
+    currentPresetValues.colorTintB = b;
+  }
+  
+  // Update shader uniforms if the shader program exists
+  if (typeof gl !== 'undefined' && gl && typeof shaderProgram !== 'undefined' && shaderProgram) {
+    const colorTintRLocation = gl.getUniformLocation(shaderProgram, 'colorTintR');
+    const colorTintGLocation = gl.getUniformLocation(shaderProgram, 'colorTintG');
+    const colorTintBLocation = gl.getUniformLocation(shaderProgram, 'colorTintB');
+    
+    if (colorTintRLocation) gl.uniform1f(colorTintRLocation, r);
+    if (colorTintGLocation) gl.uniform1f(colorTintGLocation, g);
+    if (colorTintBLocation) gl.uniform1f(colorTintBLocation, b);
+  }
+}
+
+function initializePresetThumbnails() {
+  const presetPreviews = document.querySelectorAll('.preset-preview');
+  
+  presetPreviews.forEach(canvas => {
+    const presetName = canvas.getAttribute('data-preset');
+    renderPresetThumbnail(canvas, presetName);
+  });
+}
+
+function renderPresetThumbnail(canvas, presetName) {
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  
+  // Get preset colors and style
+  const presetStyles = {
+    ambient: { 
+      colors: ['#4a9eff', '#7b68ee', '#ff6b9d'], 
+      pattern: 'waves',
+      description: 'Smooth flowing gradients'
+    },
+    energetic: { 
+      colors: ['#ff3030', '#ff6b35', '#f7931e'], 
+      pattern: 'pulses',
+      description: 'Dynamic pulsing shapes'
+    },
+    minimal: { 
+      colors: ['#ffffff', '#e0e0e0', '#b0b0b0'], 
+      pattern: 'lines',
+      description: 'Clean geometric forms'
+    },
+    abstract: { 
+      colors: ['#9c27b0', '#e91e63', '#ff5722'], 
+      pattern: 'organic',
+      description: 'Complex organic patterns'
+    },
+    retro: { 
+      colors: ['#ff0080', '#00ffff', '#ffff00'], 
+      pattern: 'grid',
+      description: '80s neon aesthetics'
+    },
+    organic: { 
+      colors: ['#4caf50', '#8bc34a', '#cddc39'], 
+      pattern: 'bubbles',
+      description: 'Natural flowing forms'
+    }
+  };
+  
+  const style = presetStyles[presetName] || presetStyles.ambient;
+  
+  // Clear canvas
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, height);
+  
+  // Create animated preview based on pattern type
+  let animationId;
+  let startTime = Date.now();
+  
+  function animate() {
+    const elapsed = (Date.now() - startTime) / 1000; // Time in seconds
+    
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Create gradient background
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, style.colors[0] + '40');
+    gradient.addColorStop(0.5, style.colors[1] + '60');
+    gradient.addColorStop(1, style.colors[2] + '40');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+    
+    // Add pattern overlay based on style
+    ctx.globalCompositeOperation = 'screen';
+    
+    switch (style.pattern) {
+      case 'waves':
+        drawWaves(ctx, width, height, elapsed, style.colors);
+        break;
+      case 'pulses':
+        drawPulses(ctx, width, height, elapsed, style.colors);
+        break;
+      case 'lines':
+        drawLines(ctx, width, height, elapsed, style.colors);
+        break;
+      case 'organic':
+        drawOrganic(ctx, width, height, elapsed, style.colors);
+        break;
+      case 'grid':
+        drawGrid(ctx, width, height, elapsed, style.colors);
+        break;
+      case 'bubbles':
+        drawBubbles(ctx, width, height, elapsed, style.colors);
+        break;
+    }
+    
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Continue animation for 3 seconds, then loop
+    if (elapsed < 3) {
+      animationId = requestAnimationFrame(animate);
+    } else {
+      startTime = Date.now();
+      animationId = requestAnimationFrame(animate);
+    }
+  }
+  
+  animate();
+  
+  // Stop animation when modal is closed
+  const observer = new MutationObserver(() => {
+    const modal = document.getElementById('preset-modal');
+    if (modal.classList.contains('hidden')) {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    }
+  });
+  
+  observer.observe(document.getElementById('preset-modal'), {
+    attributes: true,
+    attributeFilter: ['class']
+  });
+}
+
+// Thumbnail pattern drawing functions
+function drawWaves(ctx, width, height, time, colors) {
+  ctx.strokeStyle = colors[0] + '80';
+  ctx.lineWidth = 2;
+  
+  for (let y = 0; y < height; y += 20) {
+    ctx.beginPath();
+    for (let x = 0; x < width; x += 2) {
+      const wave = Math.sin((x * 0.02) + (time * 2) + (y * 0.01)) * 10;
+      if (x === 0) {
+        ctx.moveTo(x, y + wave);
+      } else {
+        ctx.lineTo(x, y + wave);
+      }
+    }
+    ctx.stroke();
+  }
+}
+
+function drawPulses(ctx, width, height, time, colors) {
+  const centerX = width / 2;
+  const centerY = height / 2;
+  
+  for (let i = 0; i < 3; i++) {
+    const radius = (Math.sin(time * 3 + i) * 0.5 + 0.5) * 40 + 20;
+    ctx.strokeStyle = colors[i % colors.length] + '60';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawLines(ctx, width, height, time, colors) {
+  ctx.strokeStyle = colors[0] + '40';
+  ctx.lineWidth = 1;
+  
+  for (let i = 0; i < 8; i++) {
+    const x = (i / 8) * width + Math.sin(time + i) * 5;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+}
+
+function drawOrganic(ctx, width, height, time, colors) {
+  for (let i = 0; i < 4; i++) {
+    const x = (Math.sin(time + i) * 0.3 + 0.5) * width;
+    const y = (Math.cos(time * 1.5 + i) * 0.3 + 0.5) * height;
+    const radius = Math.sin(time * 2 + i) * 15 + 25;
+    
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, colors[i % colors.length] + '80');
+    gradient.addColorStop(1, colors[i % colors.length] + '00');
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawGrid(ctx, width, height, time, colors) {
+  const spacing = 15;
+  ctx.strokeStyle = colors[0] + '60';
+  ctx.lineWidth = 1;
+  
+  // Vertical lines
+  for (let x = 0; x < width; x += spacing) {
+    const offset = Math.sin(time + x * 0.1) * 3;
+    ctx.beginPath();
+    ctx.moveTo(x + offset, 0);
+    ctx.lineTo(x + offset, height);
+    ctx.stroke();
+  }
+  
+  // Horizontal lines
+  for (let y = 0; y < height; y += spacing) {
+    const offset = Math.cos(time + y * 0.1) * 3;
+    ctx.beginPath();
+    ctx.moveTo(0, y + offset);
+    ctx.lineTo(width, y + offset);
+    ctx.stroke();
+  }
+}
+
+function drawBubbles(ctx, width, height, time, colors) {
+  for (let i = 0; i < 6; i++) {
+    const x = ((i * 137.5) % width); // Golden ratio distribution
+    const y = ((Math.sin(time * 0.5 + i) * 0.8 + 1) / 2) * height;
+    const radius = Math.sin(time + i * 0.7) * 8 + 12;
+    
+    ctx.fillStyle = colors[i % colors.length] + '60';
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
