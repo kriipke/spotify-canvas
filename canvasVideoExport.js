@@ -1,4 +1,4 @@
-let projectName = "komorebi"; //to be updated
+let projectName = "spotify-canvas"; //Spotify Canvas Generator
 
 //detect user browser
 var ua = navigator.userAgent;
@@ -34,8 +34,8 @@ var videoRecordInterval;
 var videoEncoder;
 var muxer;
 var mobileRecorder;
-var videofps = 30;
-let bitrate = 16_000_000;
+var videofps = 30; // Spotify Canvas supports 30fps
+let bitrate = 16_000_000; // High quality for Spotify Canvas
 
 function saveImage() {
   console.log("Export png image");
@@ -64,7 +64,8 @@ function saveImage() {
   link.href = tempCanvas.toDataURL('image/png');
   
   const date = new Date();
-  const filename = projectName + `_${date.toLocaleDateString()}_${date.toLocaleTimeString()}.png`;
+  const timestamp = date.toISOString().slice(0, 19).replace(/[:-]/g, '');
+  const filename = `${projectName}_preview_${timestamp}.png`;
   link.download = filename;
   link.click();
 
@@ -223,7 +224,8 @@ function downloadBlob() {
   a.style.display = "none";
   a.href = url;
   const date = new Date();
-  const filename = projectName+`_${date.toLocaleDateString()}_${date.toLocaleTimeString()}.mp4`;
+  const timestamp = date.toISOString().slice(0, 19).replace(/[:-]/g, '');
+  const filename = `${projectName}_${timestamp}.mp4`;
   a.download = filename;
   document.body.appendChild(a);
   a.click();

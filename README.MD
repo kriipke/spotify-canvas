@@ -1,31 +1,32 @@
-# Liquid Shape Distortions 🌀
+# Spotify Canvas Generator 🎵
 
-Create psychedelic animations in real-time in the browser.
+Create stunning animated visuals for your Spotify tracks with customizable canvas templates.
 
-(P)art of your next trip.
+Professional-quality canvas animations optimized for Spotify's canvas format.
 
-Webgl shader animation created using liquid motion, distorted shapes, shadows, and light.
+WebGL shader animations with liquid motion, distorted shapes, shadows, and dynamic audio-reactive effects.
 
-**Live demo: https://collidingscopes.github.io/liquid-shape-distortions**
+**🚀 [Try it live on GitHub Pages!](https://spencersmolen.github.io/spotify-canvas)**
 
-![Liquid Shape Distortions Example](assets/siteOGImage2.png)
-![Liquid Shape Distortions GIF Example](assets/LSD.gif)
-
-The song used is Fahrenheit Fair Enough by Telefon Tel Aviv.
+![Spotify Canvas Generator Example](assets/siteOGImage2.png)
 
 ## Overview
 
-Use this to create:
-- Animated backgrounds for music videos
-- Concert / rave posters
-- Stylized assets for creative projects
+Perfect for:
+- Musicians and producers creating Spotify canvases
+- Record labels enhancing track visuals
+- Independent artists building their brand
+- Content creators needing animated backgrounds
 
 ## Features
 
-- **Real-time rendering** - real-time edits to the animation in the browser
-- **Randomization** - Generate unique patterns with a single click
-- **Extensive controls** - Fine-tune the animation parameters and canvas size 
-- **Export options** - Save your creations as images or videos
+- **Spotify Canvas Optimization** - Pre-configured 9:16 aspect ratio perfect for Spotify
+- **Audio Reactive Visuals** - Upload your track and watch visuals respond to bass, mids, and treble
+- **Canvas Style Presets** - Choose from Ambient, Energetic, Minimal, Abstract, Retro, and Organic styles
+- **Real-time rendering** - See changes instantly in the browser
+- **Professional Export** - Export high-quality MP4 videos ready for Spotify upload
+- **Extensive controls** - Fine-tune animation parameters, colors, and effects
+- **Multiple Formats** - Support for Spotify Canvas (9:16), Square (1:1), and Landscape (16:9)
 - **Completely free** - No paywalls, no premium options
 - **Open source** - MIT licensed for personal and commercial use
 
@@ -33,46 +34,85 @@ Use this to create:
 
 | Control | Keyboard | Description |
 |---------|----------|-------------|
-| 🎲 | [R] | Randomize all inputs |
+| 🎲 | [R] | Randomize canvas style |
 | ⏯️ | [Space] | Pause/play the animation |
-| 📷 | [S] | Save a screenshot image |
-| 🎥 | [V] | Start/stop video export |
-| 🔊 | [M] | Toggle background music |
+| 📷 | [S] | Save canvas preview image |
+| 🎥 | [V] | Export Spotify canvas video |
+| 🔊 | [M] | Toggle audio preview |
+| 🎵 | Click | Upload your audio track |
 
 Additional keyboard shortcuts:
 - [Tab] - Refresh pattern with a new random seed
 - [T] - Restart animation from time = 0
 
+## Canvas Presets
+
+Choose from professionally designed presets:
+- **Ambient Flow** - Smooth, ethereal movements perfect for chill and ambient tracks
+- **High Energy** - Dynamic, pulsing visuals for electronic and dance music
+- **Minimalist** - Clean, simple patterns for indie and acoustic music
+- **Abstract Art** - Complex, artistic patterns for experimental music
+- **Retro Wave** - Nostalgic 80s-inspired visuals for synthwave and retro tracks
+- **Organic Shapes** - Natural, flowing patterns for folk and organic music
+
 ## Technical Details
 
 This project is built using:
 - WebGL shaders for high-performance rendering
+- Web Audio API for real-time audio analysis
 - Vanilla JavaScript for logic and interactivity
 - HTML5 Canvas for display
-- CSS for styling
+- CSS3 with Spotify-themed styling
 - dat.GUI for the control interface
 - MP4 muxer for video encoding and export
 
-The fragment shader uses:
-- 3D simplex noise and fractal Brownian motion for organic patterns / liquid movement
+The fragment shader features:
+- 3D simplex noise and fractal Brownian motion for organic patterns
+- Audio-reactive parameter modulation
 - Seed-based randomization for unique visuals
-- Real-time shader effects (bloom, saturation, grain)
+- Real-time shader effects (bloom, saturation, grain, distortion)
+- Optimized for Spotify Canvas format (720x1280, 9:16 aspect ratio)
 
-## Installation
+## Quick Start
+
+### 🌐 Use Online (Recommended)
+Visit the live version: **[https://spencersmolen.github.io/spotify-canvas](https://spencersmolen.github.io/spotify-canvas)**
+
+### 💻 Run Locally
 
 1. Clone the repository:
-   ```
-   git clone https://github.com/collidingScopes/liquid-shape-distortions.git
+   ```bash
+   git clone https://github.com/spencersmolen/spotify-canvas.git
+   cd spotify-canvas
    ```
 
-2. Open `index.html` in a web browser.
+2. Open `index.html` in a web browser, or use a local server:
+   ```bash
+   npx http-server
+   # or
+   python -m http.server 8080
+   ```
 
 That's it! No build process, dependencies, or server setup required.
 
-For development, you might want to use a local server:
-```
-npx http-server
-```
+## 🚀 GitHub Pages Deployment
+
+This repository is configured for automatic GitHub Pages deployment:
+
+1. **Enable GitHub Pages** in your repository settings
+2. **Set source** to "GitHub Actions" 
+3. **Push to main branch** - the site deploys automatically
+4. **Visit** your site at `https://spencersmolen.github.io/spotify-canvas`
+
+The deployment workflow is located in `.github/workflows/deploy.yml` and runs automatically on every push to the main branch.
+
+## How to Use
+
+1. **Choose a Canvas Preset** - Click "Canvas Presets" and select a style that matches your music
+2. **Upload Your Audio** - Click the 🎵 button to upload your track for audio-reactive visuals
+3. **Customize** - Use the control panel to fine-tune colors, effects, and animation parameters
+4. **Preview** - Watch your canvas in real-time and make adjustments
+5. **Export** - Click 🎥 to export your canvas as an MP4 video ready for Spotify upload
 
 ## Performance Notes
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Liquid Shape Distortions</title>
+    <title>Spotify Canvas Generator</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
 
@@ -13,11 +13,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Modak&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <meta property="og:title" content="Liquid Shape Distortions" />
-    <meta property="og:description" content="psychedelic animation generator; (p)art of your next trip" />
+    <meta property="og:title" content="Spotify Canvas Generator" />
+    <meta property="og:description" content="Create stunning animated visuals for your Spotify tracks with customizable canvas templates" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://collidingscopes.github.io/liquid-shape-distortions" />
-    <meta property="og:image" content="https://collidingscopes.github.io/liquid-shape-distortions/assets/siteOGImage2.png">
+    <meta property="og:url" content="https://spencersmolen.github.io/spotify-canvas" />
+    <meta property="og:image" content="https://spencersmolen.github.io/spotify-canvas/assets/siteOGImage2.png">
     <meta property="og:image:type" content="image/png" >
     <meta property="og:image:width" content="1622" >
     <meta property="og:image:height" content="1622" >
@@ -32,37 +32,282 @@
     
     <div id="intro-overlay">
         <div id="intro-content">
-          <h1 id="intro-title">Liquid Shape Distortions 🌀</h1>
+          <h1 id="intro-title">Spotify Canvas Generator 🎵</h1>
           <p class="intro-text">
-            Create psychedelic art using liquid motion, distortion, shadows and light. 
+            Create stunning animated visuals for your Spotify tracks using customizable canvas templates. 
           </p>
-          <p class="intro-text">I recommend hitting the 🎲 button until you get something you like.</p>
-          <p class="intro-text">You can also use the full controls at the top right to fine-tune all parameters.</p>
+          <p class="intro-text">Hit the 🎲 button to generate random canvas styles, or use the controls to fine-tune your design.</p>
+          <p class="intro-text">Export your canvas as a 9:16 vertical video optimized for Spotify.</p>
 
           <div id="hotkeys-section">
             <ul id="hotkeys-list">
-              <li>🎲: randomize all inputs [r]</li>
+              <li>🎲: randomize canvas style [r]</li>
               <li>⏯️: pause/play the animation [space]</li>
-              <li>📷: save a screenshot image [s]</li>
-              <li>🎥: start/stop video export [v]</li>
-              <li>🔊: start/stop music [m]</li>
+              <li>📷: save canvas preview [s]</li>
+              <li>🎥: export Spotify canvas video [v]</li>
+              <li>🔊: toggle audio preview [m]</li>
             </ul>
           </div>
-          <button id="start-button">Go ✨</button>
+          <button id="start-button">Create Canvas ✨</button>
         </div>
     </div>
 
     <div id="gui" class="ui-overlay"></div>
     <canvas id="canvas"></canvas>
 
-    <div id="zen-mode-container">
-        <button id="zen-mode-button" class="gui-button icon">[Zen Mode]</button>
+    <div id="canvas-controls-container">
+        <button id="preset-mode-button" class="gui-button">Canvas Presets</button>
+        <button id="zen-mode-button" class="gui-button icon">[Focus Mode]</button>
+    </div>
+
+    <!-- Hidden file input for audio upload -->
+    <input type="file" id="audio-upload-input" accept="audio/*" style="display: none;" />
+
+    <!-- Preset selector modal -->
+    <div id="preset-modal" class="hidden">
+        <div id="preset-content">
+            <h3>Choose Canvas Style</h3>
+            <div id="preset-grid">
+                <button class="preset-btn" data-preset="ambient">
+                    Ambient Flow
+                    <span class="preset-edit-btn" data-preset="ambient">⚙️</span>
+                </button>
+                <button class="preset-btn" data-preset="energetic">High Energy</button>
+                <button class="preset-btn" data-preset="minimal">Minimalist</button>
+                <button class="preset-btn" data-preset="abstract">Abstract Art</button>
+                <button class="preset-btn" data-preset="retro">Retro Wave</button>
+                <button class="preset-btn" data-preset="organic">Organic Shapes</button>
+            </div>
+            <button id="close-preset-modal">Close</button>
+        </div>
+    </div>
+
+    <!-- Advanced Preset Editor Modal -->
+    <div id="preset-editor-modal" class="hidden">
+        <div id="preset-editor-content">
+            <div id="preset-editor-header">
+                <h3 id="preset-editor-title">Edit Ambient Flow</h3>
+                <button id="close-preset-editor">×</button>
+            </div>
+            
+            <div id="preset-editor-body">
+                <!-- Animation Section -->
+                <div class="editor-section">
+                    <h4>Animation</h4>
+                    <div class="editor-controls">
+                        <div class="control-group">
+                            <label>Speed</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-timeScale" min="0.1" max="3.0" step="0.1" value="0.2">
+                                <span class="slider-value">0.2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pattern Section -->
+                <div class="editor-section">
+                    <h4>Pattern</h4>
+                    <div class="editor-controls">
+                        <div class="control-group">
+                            <label>Amplitude</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-patternAmp" min="1" max="50" step="0.5" value="8">
+                                <span class="slider-value">8</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Frequency</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-patternFreq" min="0.1" max="2.0" step="0.1" value="0.3">
+                                <span class="slider-value">0.3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Effects Section -->
+                <div class="editor-section">
+                    <h4>Visual Effects</h4>
+                    <div class="editor-controls">
+                        <div class="control-group">
+                            <label>Bloom Strength</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-bloomStrength" min="0" max="5" step="0.1" value="1.5">
+                                <span class="slider-value">1.5</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Saturation</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-saturation" min="0" max="2" step="0.1" value="0.7">
+                                <span class="slider-value">0.7</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Grain Amount</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-grainAmount" min="0" max="0.5" step="0.01" value="0.1">
+                                <span class="slider-value">0.1</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Section -->
+                <div class="editor-section">
+                    <h4>Color Tint</h4>
+                    <div class="editor-controls color-controls">
+                        <div class="control-group">
+                            <label>Red</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-colorTintR" min="0" max="1.5" step="0.1" value="0.8">
+                                <div class="color-preview" id="red-preview"></div>
+                                <span class="slider-value">0.8</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Green</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-colorTintG" min="0" max="1.5" step="0.1" value="1.0">
+                                <div class="color-preview" id="green-preview"></div>
+                                <span class="slider-value">1.0</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Blue</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-colorTintB" min="0" max="1.5" step="0.1" value="1.2">
+                                <div class="color-preview" id="blue-preview"></div>
+                                <span class="slider-value">1.2</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overlay Color Section -->
+                <div class="editor-section">
+                    <h4>Overlay Color</h4>
+                    <div class="editor-controls color-controls">
+                        <div class="control-group">
+                            <label>Red</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-overlayColorR" min="0" max="1.0" step="0.05" value="0.2">
+                                <div class="color-preview" id="overlay-red-preview"></div>
+                                <span class="slider-value">0.2</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Green</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-overlayColorG" min="0" max="1.0" step="0.05" value="0.4">
+                                <div class="color-preview" id="overlay-green-preview"></div>
+                                <span class="slider-value">0.4</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Blue</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-overlayColorB" min="0" max="1.0" step="0.05" value="0.8">
+                                <div class="color-preview" id="overlay-blue-preview"></div>
+                                <span class="slider-value">0.8</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Opacity</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-overlayOpacity" min="0" max="1.0" step="0.05" value="0.15">
+                                <span class="slider-value">0.15</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Background Color Section -->
+                <div class="editor-section">
+                    <h4>Background Color</h4>
+                    <div class="editor-controls color-controls">
+                        <div class="control-group">
+                            <label>Red</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-backgroundColorR" min="0" max="1.0" step="0.05" value="0.05">
+                                <div class="color-preview" id="background-red-preview"></div>
+                                <span class="slider-value">0.05</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Green</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-backgroundColorG" min="0" max="1.0" step="0.05" value="0.1">
+                                <div class="color-preview" id="background-green-preview"></div>
+                                <span class="slider-value">0.1</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Blue</label>
+                            <div class="color-slider-container">
+                                <input type="range" id="edit-backgroundColorB" min="0" max="1.0" step="0.05" value="0.2">
+                                <div class="color-preview" id="background-blue-preview"></div>
+                                <span class="slider-value">0.2</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Opacity</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-backgroundOpacity" min="0" max="1.0" step="0.05" value="0.3">
+                                <span class="slider-value">0.3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distortion Section -->
+                <div class="editor-section">
+                    <h4>Distortion</h4>
+                    <div class="editor-controls">
+                        <div class="control-group">
+                            <label>Circle Size</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-minCircleSize" min="0" max="10" step="0.1" value="2.0">
+                                <span class="slider-value">2.0</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Circle Strength</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-circleStrength" min="0" max="3" step="0.1" value="0.8">
+                                <span class="slider-value">0.8</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Distort X</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-distortX" min="0" max="50" step="1" value="3">
+                                <span class="slider-value">3</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Distort Y</label>
+                            <div class="slider-container">
+                                <input type="range" id="edit-distortY" min="0" max="50" step="1" value="15">
+                                <span class="slider-value">15</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="preset-editor-footer">
+                <button id="apply-preset-changes">Apply Changes</button>
+                <button id="reset-preset">Reset to Default</button>
+            </div>
+        </div>
     </div>
     
     <table id="button-table">
         <tr>
             <td>
-              <button id="randomizeBtn" class="gui-button icon" title="Randomize Inputs (r)">🎲</button>
+              <button id="randomizeBtn" class="gui-button icon" title="Random Canvas Style (r)">🎲</button>
             </td>
 
             <td>
@@ -70,87 +315,33 @@
             </td>
   
             <td>
-              <button id="saveBtn" class="gui-button icon" title="Save Image (s)">📷</button>
+              <button id="saveBtn" class="gui-button icon" title="Save Canvas Preview (s)">📷</button>
             </td>
   
             <td>
-              <button id="exportVideoBtn" class="gui-button icon" title="Export Video (v)">🎥</button>
+              <button id="exportVideoBtn" class="gui-button icon" title="Export Spotify Canvas (v)">🎥</button>
             </td>
 
             <td>
-                <button id="toggleMusicBtn" class="gui-button icon" title="Toggle Music (m)">🔊</button>
+                <button id="toggleMusicBtn" class="gui-button icon" title="Toggle Audio Preview (m)">🔊</button>
+            </td>
+
+            <td>
+                <button id="upload-audio-btn" class="gui-button icon" title="Upload Your Audio">🎵</button>
             </td>
         </tr>
     </table>
     
     <div id="info-container">
-        <p>Made by: <a id="floating-ig-link" href="https://www.instagram.com/stereo.drift/" rel="noopener" target="_blank">@stereo.drift</a></p>
-        <p>Song: Fahrenheit Fair Enough - Telefon Tel Aviv</p>
+        <p>Spotify Canvas Generator v1.0</p>
+        <p id="audio-info">Ready to create your canvas</p>
         <p id="fpsIndicator" class="ui-overlay">FPS: </p>
     </div>
 
     <div id="videoRecordingMessageDiv" class="hidden sticky-top">
-        Video recording underway. Press 🎥 button or "v" to stop. The video will save to your downloads folder after.
+        Recording Spotify Canvas... Press 🎥 button or "v" to stop. The canvas video will save to your downloads folder.
     </div>
   
-      <div id="notesDiv">
-        <div id="textBox">
-  
-            <h2 id="aboutText">Liquid Shape Distortions 🌀</h2>
-            <h3 id="subtitleText">Psychedelic animation generator; (p)art of your next trip</h3>
-  
-            <img class="example-img" src="assets/siteOGImage2.png">
-  
-            <p>Create psychedelic art using liquid motion, distortion, shadows and light. This tool is free, and works in real-time in the browser.</p>
-            <p>This project was inspired by drum & bass / acid techno music, and 90s rave posters.</p>
-            <p>Use this to create art for a music video, concert posters, stylized animations in creative projects, or simply to enjoy alongside some fine music.</p>
-
-            <p>Controls / hotkeys:</p>
-            <ul>
-                <li>🎲: randomize all inputs [r]</li>
-                <li>⏯️: pause/play the animation [space]</li>
-                <li>📷: save a screenshot image [s]</li>
-                <li>🎥: start and stop video export [v]</li>
-                <li>🔊: start/stop music [m]</li>
-            </ul>
-
-            <p>Use the full control menu (top-right) to set a custom canvas size, adjust animation speed, control pattern and colours, etc...</p>
-            <p>You can export your creation as an image or video afterwards.</p>
-            <p>The animation is created with WebGL shaders, starting from a random seed position and mixing in elements of random noise (fractal brownian motion, 3D simplex noise), so each time you re-run it you're creating a unique piece of art.</p>
-            <p>This tool is completely free, open source (MIT license), without any paywalls or premium options. You are welcome to use it for personal or commercial purposes.</p>
-            <p>If you found this tool useful, feel free to buy me a coffee. My name is Alan, and I enjoy building open source software for art, animation, games, and more. This would be much appreciated during late-night coding sessions!</p>
-            
-            <a href="https://www.buymeacoffee.com/stereoDrift" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/yellow_img.png" alt="Buy Me A Coffee"></a>
-    
-            <p>The code used to create the animation is resource-intensive, so it may run with some lag if your computer doesn't have enough computing power, too many tabs open, low battery, etc.</p>
-            <p>If the video export feature does not work for you, please try a free screen-recording tool such as OBS Studio.</p>
-  
-            <p>This project is coded using webgl shaders, vanilla Javascript, HTML5 canvas, and CSS (<a href="https://github.com/collidingScopes/liquid-shape-distortions" target="_blank" rel="noopener">see github repo</a>). Video creation and encoding is done using mp4 muxer.</p>
-            <p>The song used is Fahrenheit Fair Enough by Telefon Tel Aviv.</p>
-            <p>If you enjoyed this, you may be interested in my other free / open source projects:</p>
-            <ul>
-              <li><a href="https://collidingScopes.github.io/particular-drift" target="_blank" rel="noopener">Particular Drift</a>: turn photos into flowing particle animations</li>
-              <li><a href="https://collidingScopes.github.io/liquid-logo" target="_blank" rel="noopener">Liquid Logo</a>: turn logos and icons into liquid metal animations</li>
-              <li><a href="https://collidingScopes.github.io/ascii" target="_blank" rel="noopener">Video-to-ASCII</a>: turn videos into ASCII pixel art</li>
-              <li><a href="https://collidingScopes.github.io/shimmer" target="_blank" rel="noopener">Shape Shimmer</a>: turn photos into funky wave animations</li>
-              <li><a href="https://collidingScopes.github.io" target="_blank" rel="noopener">Colliding Scopes</a>: turn photos into kaleidoscope animations</li>
-              <li><a href="https://manual-brick-breaker.netlify.app" target="_blank" rel="noopener">Manual Brick Breaker</a>: play brick breaker by waving your hands around</li>
-            </ul>
-            <p>Feel free to reach out to discuss, ask questions, or just to say hi! You can find me <a href="https://www.instagram.com/stereo.drift/" target="_blank" rel="noopener">@stereo.drift</a> on instagram, or through the other places below :)</p>
-        </div>
-      </div>
-  
-      <div id="linksDiv">
-        <table id="infoMenuTable">
-            <tr>
-                <td><button id="gitHubButton"class="socialMediaButton"><a href="https://github.com/collidingScopes/liquid-shape-distortions" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i></a></button></td>
-                <td><button id="coffeeButton" class="socialMediaButton"><a href="https://www.buymeacoffee.com/stereoDrift" target="_blank" rel="noopener"><i class="fa-solid fa-heart"></i></a></button></td>
-                <td><button id="instagramButton" class="socialMediaButton"><a href="https://www.instagram.com/stereo.drift/" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i></a></button></td>
-                <td><button id="xButton" class="socialMediaButton"><a class="x-link" href="https://x.com/measure_plan" target="_blank" rel="noopener">𝕏</i></a></button></td>
-                <td><button id="emailButton" class="socialMediaButton"><a href="mailto:stereodriftvisuals@gmail.com" target="_blank" rel="noopener"><i class="fa-solid fa-envelope"></i></a></button></td>
-            </tr>
-        </table>
-      </div>
 
     <script id="vertexShader" type="x-shader/x-vertex">
         attribute vec2 position;
@@ -174,6 +365,10 @@
         uniform float saturation;
         uniform float grainAmount;
         uniform vec3 colorTint;
+        uniform vec3 overlayColor;
+        uniform vec3 backgroundColor;
+        uniform float overlayOpacity;
+        uniform float backgroundOpacity;
         uniform float minCircleSize;
         uniform float circleStrength;
         uniform float distortX;
@@ -512,6 +707,18 @@
             vec3 saturatedColor = mix(vec3(luminance), color, saturation);
             float satMix = 1.0;
             color = mix(color, saturatedColor, satMix);
+            
+            // Apply background color blend
+            if (backgroundOpacity > 0.0) {
+                color = mix(color, backgroundColor, backgroundOpacity);
+            }
+            
+            // Apply overlay color blend
+            if (overlayOpacity > 0.0) {
+                // Use screen blend mode for overlay
+                vec3 overlayBlended = 1.0 - (1.0 - color) * (1.0 - overlayColor);
+                color = mix(color, overlayBlended, overlayOpacity);
+            }
             
             gl_FragColor = vec4(color, 1.0);
         }
