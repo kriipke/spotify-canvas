@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:spencersmolen.github.io)",
+      "WebFetch(domain:kriipke.github.io)",
+      "WebSearch",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

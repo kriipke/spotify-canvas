@@ -1,53 +1,58 @@
-# Spotify Canvas Generator 🎵
+# Live House Music Visualizer 🎧
 
-Create stunning animated visuals for your Spotify tracks with customizable canvas templates.
+Professional real-time visualization system for live house music performances, DJ sets, and electronic music events.
 
-Professional-quality canvas animations optimized for Spotify's canvas format.
+High-performance WebGL audio-reactive visualizations with advanced beat detection, optimized for club environments.
 
-WebGL shader animations with liquid motion, distorted shapes, shadows, and dynamic audio-reactive effects.
+Real-time microphone input, BPM tracking, and house music genre-specific visual presets.
 
-**🚀 [Try it live on GitHub Pages!](https://spencersmolen.github.io/spotify-canvas)**
+**🚀 [Try it live on GitHub Pages!](https://spencersmolen.github.io/live-visuals)**
 
-![Spotify Canvas Generator Example](assets/siteOGImage2.png)
+![Live House Music Visualizer](assets/siteOGImage2.png)
 
 ## Overview
 
 Perfect for:
-- Musicians and producers creating Spotify canvases
-- Record labels enhancing track visuals
-- Independent artists building their brand
-- Content creators needing animated backgrounds
+- DJs performing live house music sets
+- VJs creating visuals for electronic music events  
+- Club owners enhancing their venue atmosphere
+- Electronic music producers showcasing their tracks
+- Live streaming performances with reactive visuals
+- Music festivals and electronic dance events
 
 ## Features
 
-- **Spotify Canvas Optimization** - Pre-configured 9:16 aspect ratio perfect for Spotify
-- **Audio Reactive Visuals** - Upload your track and watch visuals respond to bass, mids, and treble
-- **Canvas Style Presets** - Choose from Ambient, Energetic, Minimal, Abstract, Retro, and Organic styles
-- **Real-time rendering** - See changes instantly in the browser
-- **Professional Export** - Export high-quality MP4 videos ready for Spotify upload
-- **Extensive controls** - Fine-tune animation parameters, colors, and effects
-- **Multiple Formats** - Support for Spotify Canvas (9:16), Square (1:1), and Landscape (16:9)
-- **Completely free** - No paywalls, no premium options
-- **Open source** - MIT licensed for personal and commercial use
+- **Live Microphone Input** - Real-time audio analysis from microphone or audio interface
+- **Advanced Beat Detection** - AI-powered beat detection optimized for house music (120-140 BPM)
+- **Real-time BPM Tracking** - Automatic tempo detection and synchronization
+- **House Music Presets** - Genre-specific visuals for Deep House, Progressive House, Tech House, Acid House, Electro House, and Future House
+- **Low-Latency Performance** - Sub-10ms audio-to-visual response time for live shows
+- **Fullscreen Presentation** - Immersive fullscreen mode for projectors and large displays
+- **60+ FPS Rendering** - Smooth high-framerate visuals optimized for live performance
+- **Professional Controls** - Real-time parameter adjustment during live sets
+- **Multiple Audio Sources** - Support for microphone, line input, and uploaded audio files
+- **Live Mode Interface** - Performance-optimized UI with beat indicators and BPM display
 
-## Controls
+## Live Performance Controls
 
 | Control | Keyboard | Description |
 |---------|----------|-------------|
-| 🎲 | [R] | Randomize canvas style |
+| 🎲 | [R] | Randomize visual style |
 | ⏯️ | [Space] | Pause/play the animation |
-| 📷 | [S] | Save canvas preview image |
-| 🎥 | [V] | Export Spotify canvas video |
-| 🔊 | [M] | Toggle audio preview |
-| 🎵 | Click | Upload your audio track |
+| 🎤 | [I] | Enable live microphone input |
+| 🔴 | [L] | Activate live performance mode |
+| ⛶ | [F] | Toggle fullscreen mode |
+| 📷 | [S] | Save current frame |
+| 🎵 | Click | Upload audio track for testing |
 
-Additional keyboard shortcuts:
-- [Tab] - Refresh pattern with a new random seed
-- [T] - Restart animation from time = 0
+Additional live controls:
+- [B] - Toggle beat detection
+- [Tab] - Refresh visual pattern
+- [T] - Restart animation timing
 
-## Canvas Presets
+## House Music Visual Presets
 
-Choose from professionally designed presets:
+Choose from professionally designed presets optimized for electronic music:
 - **Ambient Flow** - Smooth, ethereal movements perfect for chill and ambient tracks
 - **High Energy** - Dynamic, pulsing visuals for electronic and dance music
 - **Minimalist** - Clean, simple patterns for indie and acoustic music

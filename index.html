@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Spotify Canvas Generator</title>
+    <title>Live House Music Visualizer</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
 
@@ -13,8 +13,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Modak&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <meta property="og:title" content="Spotify Canvas Generator" />
-    <meta property="og:description" content="Create stunning animated visuals for your Spotify tracks with customizable canvas templates" />
+    <meta property="og:title" content="Live House Music Visualizer" />
+    <meta property="og:description" content="Professional real-time visual system for live house music performances and DJ sets" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://spencersmolen.github.io/spotify-canvas" />
     <meta property="og:image" content="https://spencersmolen.github.io/spotify-canvas/assets/siteOGImage2.png">
@@ -32,23 +32,24 @@
     
     <div id="intro-overlay">
         <div id="intro-content">
-          <h1 id="intro-title">Spotify Canvas Generator 🎵</h1>
+          <h1 id="intro-title">Live House Music Visualizer 🎧</h1>
           <p class="intro-text">
-            Create stunning animated visuals for your Spotify tracks using customizable canvas templates. 
+            Professional real-time visualization system for live house music performances, DJ sets, and electronic music events.
           </p>
-          <p class="intro-text">Hit the 🎲 button to generate random canvas styles, or use the controls to fine-tune your design.</p>
-          <p class="intro-text">Export your canvas as a 9:16 vertical video optimized for Spotify.</p>
+          <p class="intro-text">Connect your microphone or audio interface for live audio-reactive visuals that sync perfectly with your music.</p>
+          <p class="intro-text">Optimized for club environments with low-latency audio analysis and 60+ FPS performance.</p>
 
           <div id="hotkeys-section">
             <ul id="hotkeys-list">
-              <li>🎲: randomize canvas style [r]</li>
+              <li>🎲: randomize visual style [r]</li>
               <li>⏯️: pause/play the animation [space]</li>
-              <li>📷: save canvas preview [s]</li>
-              <li>🎥: export Spotify canvas video [v]</li>
-              <li>🔊: toggle audio preview [m]</li>
+              <li>🎤: enable live microphone input [i]</li>
+              <li>🔴: start live mode [l]</li>
+              <li>⛶: toggle fullscreen [f]</li>
+              <li>📷: save frame [s]</li>
             </ul>
           </div>
-          <button id="start-button">Create Canvas ✨</button>
+          <button id="start-button">Start Live Visualizer ✨</button>
         </div>
     </div>
 
@@ -56,7 +57,9 @@
     <canvas id="canvas"></canvas>
 
     <div id="canvas-controls-container">
-        <button id="preset-mode-button" class="gui-button">Canvas Presets</button>
+        <button id="preset-mode-button" class="gui-button">Visual Presets</button>
+        <button id="live-mode-button" class="gui-button">Live Mode</button>
+        <button id="fullscreen-button" class="gui-button">Fullscreen</button>
         <button id="zen-mode-button" class="gui-button icon">[Focus Mode]</button>
     </div>
 
@@ -66,15 +69,15 @@
     <!-- Preset selector modal -->
     <div id="preset-modal" class="hidden">
         <div id="preset-content">
-            <h3>Choose Canvas Style</h3>
+            <h3>Choose Visual Style</h3>
             <div id="preset-grid">
                 <button class="preset-btn" data-preset="ambient">
                     <div class="preset-thumbnail" data-preset="ambient">
                         <canvas class="preset-preview" width="120" height="200" data-preset="ambient"></canvas>
                     </div>
                     <div class="preset-info">
-                        <h4>Ambient Flow</h4>
-                        <p>Smooth, ethereal movements</p>
+                        <h4>Deep House</h4>
+                        <p>Smooth, hypnotic flow for deep house tracks</p>
                         <span class="preset-edit-btn" data-preset="ambient">⚙️</span>
                     </div>
                 </button>
@@ -83,8 +86,8 @@
                         <canvas class="preset-preview" width="120" height="200" data-preset="energetic"></canvas>
                     </div>
                     <div class="preset-info">
-                        <h4>High Energy</h4>
-                        <p>Dynamic, pulsing visuals</p>
+                        <h4>Progressive House</h4>
+                        <p>Building energy and dynamic progression</p>
                         <span class="preset-edit-btn" data-preset="energetic">⚙️</span>
                     </div>
                 </button>
@@ -93,8 +96,8 @@
                         <canvas class="preset-preview" width="120" height="200" data-preset="minimal"></canvas>
                     </div>
                     <div class="preset-info">
-                        <h4>Minimalist</h4>
-                        <p>Clean, simple patterns</p>
+                        <h4>Tech House</h4>
+                        <p>Precise, geometric technical patterns</p>
                         <span class="preset-edit-btn" data-preset="minimal">⚙️</span>
                     </div>
                 </button>
@@ -103,8 +106,8 @@
                         <canvas class="preset-preview" width="120" height="200" data-preset="abstract"></canvas>
                     </div>
                     <div class="preset-info">
-                        <h4>Abstract Art</h4>
-                        <p>Complex, artistic patterns</p>
+                        <h4>Acid House</h4>
+                        <p>Psychedelic, morphing visual textures</p>
                         <span class="preset-edit-btn" data-preset="abstract">⚙️</span>
                     </div>
                 </button>
@@ -113,8 +116,8 @@
                         <canvas class="preset-preview" width="120" height="200" data-preset="retro"></canvas>
                     </div>
                     <div class="preset-info">
-                        <h4>Retro Wave</h4>
-                        <p>Nostalgic 80s-inspired visuals</p>
+                        <h4>Electro House</h4>
+                        <p>Sharp, electric visual elements</p>
                         <span class="preset-edit-btn" data-preset="retro">⚙️</span>
                     </div>
                 </button>
@@ -123,8 +126,8 @@
                         <canvas class="preset-preview" width="120" height="200" data-preset="organic"></canvas>
                     </div>
                     <div class="preset-info">
-                        <h4>Organic Shapes</h4>
-                        <p>Natural, flowing patterns</p>
+                        <h4>Future House</h4>
+                        <p>Futuristic, evolving visual forms</p>
                         <span class="preset-edit-btn" data-preset="organic">⚙️</span>
                     </div>
                 </button>
@@ -370,7 +373,7 @@
     <table id="button-table">
         <tr>
             <td>
-              <button id="randomizeBtn" class="gui-button icon" title="Random Canvas Style (r)">🎲</button>
+              <button id="randomizeBtn" class="gui-button icon" title="Random Visual Style (r)">🎲</button>
             </td>
 
             <td>
@@ -378,31 +381,41 @@
             </td>
   
             <td>
-              <button id="saveBtn" class="gui-button icon" title="Save Canvas Preview (s)">📷</button>
+              <button id="micInputBtn" class="gui-button icon" title="Live Microphone Input (i)">🎤</button>
             </td>
   
             <td>
-              <button id="exportVideoBtn" class="gui-button icon" title="Export Spotify Canvas (v)">🎥</button>
+              <button id="liveModeBtn" class="gui-button icon" title="Live Performance Mode (l)">🔴</button>
             </td>
 
             <td>
-                <button id="toggleMusicBtn" class="gui-button icon" title="Toggle Audio Preview (m)">🔊</button>
+                <button id="fullscreenBtn" class="gui-button icon" title="Fullscreen Mode (f)">⛶</button>
             </td>
 
             <td>
-                <button id="upload-audio-btn" class="gui-button icon" title="Upload Your Audio">🎵</button>
+              <button id="saveBtn" class="gui-button icon" title="Save Frame (s)">📷</button>
+            </td>
+
+            <td>
+                <button id="upload-audio-btn" class="gui-button icon" title="Upload Audio Track">🎵</button>
             </td>
         </tr>
     </table>
     
     <div id="info-container">
-        <p>Spotify Canvas Generator v1.0</p>
-        <p id="audio-info">Ready to create your canvas</p>
+        <p>Live House Music Visualizer v1.0</p>
+        <p id="audio-info">Ready for live performance</p>
         <p id="fpsIndicator" class="ui-overlay">FPS: </p>
+        <p id="latencyIndicator" class="ui-overlay">Latency: </p>
+        <p id="beatIndicator" class="ui-overlay">BPM: </p>
     </div>
 
-    <div id="videoRecordingMessageDiv" class="hidden sticky-top">
-        Recording Spotify Canvas... Press 🎥 button or "v" to stop. The canvas video will save to your downloads folder.
+    <div id="liveModeMessageDiv" class="hidden sticky-top">
+        LIVE MODE ACTIVE - Audio-reactive visuals synchronized to live input
+    </div>
+
+    <div id="beatIndicatorDiv" class="hidden beat-indicator">
+        ♥ BEAT ♥
     </div>
   
 
