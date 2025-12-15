@@ -65,16 +65,23 @@ function compileShader(source, type) {
 const vertexShader = compileShader(document.getElementById('vertexShader').textContent, gl.VERTEX_SHADER);
 const fragmentShader = compileShader(document.getElementById('fragmentShader').textContent, gl.FRAGMENT_SHADER);
 
-const program = gl.createProgram();
-gl.attachShader(program, vertexShader);
-gl.attachShader(program, fragmentShader);
-gl.linkProgram(program);
+let program = null;
 
-if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error('Program linking error:', gl.getProgramInfoLog(program));
+if (vertexShader && fragmentShader) {
+    program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Program linking error:', gl.getProgramInfoLog(program));
+        program = null;
+    } else {
+        gl.useProgram(program);
+    }
+} else {
+    console.error('Failed to compile one or both shaders');
 }
-
-gl.useProgram(program);
 
 // Create rectangle covering the entire canvas
 const positionBuffer = gl.createBuffer();
@@ -113,6 +120,22 @@ const distortYLocation = gl.getUniformLocation(program, 'distortY');
 const patternAmpLocation = gl.getUniformLocation(program, 'patternAmp');
 const patternFreqLocation = gl.getUniformLocation(program, 'patternFreq');
 
+// Enhanced audio-reactive uniform locations (with null checks)
+let bassLevelLocation, midLevelLocation, trebleLevelLocation, kickLevelLocation, beatFlashLocation;
+let noiseAmountLocation, warpStrengthLocation, chromaticAberrationLocation, vignetteStrengthLocation;
+
+if (program) {
+    bassLevelLocation = gl.getUniformLocation(program, 'bassLevel');
+    midLevelLocation = gl.getUniformLocation(program, 'midLevel');
+    trebleLevelLocation = gl.getUniformLocation(program, 'trebleLevel');
+    kickLevelLocation = gl.getUniformLocation(program, 'kickLevel');
+    beatFlashLocation = gl.getUniformLocation(program, 'beatFlash');
+    noiseAmountLocation = gl.getUniformLocation(program, 'noiseAmount');
+    warpStrengthLocation = gl.getUniformLocation(program, 'warpStrength');
+    chromaticAberrationLocation = gl.getUniformLocation(program, 'chromaticAberration');
+    vignetteStrengthLocation = gl.getUniformLocation(program, 'vignetteStrength');
+}
+
 // Audio context for visualization
 let audioContext;
 let audioAnalyser;
@@ -130,9 +153,9 @@ let smoothedAudioData = {
 
 // Smoothing parameters
 const audioSmoothing = {
-    factor: 0.15, // How much of the new value to use (lower = smoother)
-    threshold: 0.02, // Minimum change required to update
-    dampening: 0.95 // Gradual reduction when no strong signal
+    factor: 0.08, // How much of the new value to use (lower = smoother, reduced for less graininess)
+    threshold: 0.01, // Minimum change required to update (reduced for smoother transitions)
+    dampening: 0.97 // Gradual reduction when no strong signal (increased for smoother decay)
 };
 
 // Advanced Audio Analysis for Live Performance - KICK DRUM BEAT DETECTION
@@ -294,7 +317,7 @@ const params = {
     patternFreq: 0.8,
     bloomStrength: 1.5,
     saturation: 1.1,
-    grainAmount: 0.15,
+    grainAmount: 0.0, // Disabled by default to prevent TV static
     colorTintR: 1.0,
     colorTintG: 1.0, 
     colorTintB: 1.0,
@@ -324,19 +347,40 @@ const params = {
     kickSensitivity: 2.5,     // How sensitive to kick drum changes
     kickBeatFlash: 2.0,       // How much kick beats flash the visuals
     
-    // Secondary frequency responses (reduced for kick focus)
+    // Secondary frequency responses (reduced for kick focus and to prevent graininess)
     bassResponse: 1.0,        // General bass (reduced from 2.0)
-    midResponse: 0.3,         // Mid frequencies (heavily reduced)
-    trebleResponse: 0.2,      // Treble frequencies (minimal)
+    midResponse: 0.2,         // Mid frequencies (heavily reduced)
+    trebleResponse: 0.05,     // Treble frequencies (minimal - main cause of graininess)
     
     audioSmoothing: 0.1,      // Faster response for live use
     audioIntensity: 1.2,      // Higher intensity for live
     beatSensitivity: 1.8,     // Increased beat sensitivity for kicks
     visualResponse: 2.5,      // Enhanced visual response to beats
+    
+    // Enhanced shader effects (reduced to prevent TV static)
+    noiseAmount: 0.0, // Disabled by default to prevent TV static
+    warpStrength: 0.3,
+    chromaticAberration: 0.0,
+    vignetteStrength: 0.0,
+    trailDecay: 0.95,
+    layeredRendering: false,
+    
+    // Post-processing effects
+    bloomThreshold: 0.5,
+    bloomIntensity: 1.0,
+    glitchIntensity: 0.0,
+    postProcessingEnabled: false,
+    
+    // Multi-layer blending
+    backgroundLayer: true,
+    foregroundLayer: true,
+    afterimageEffect: false,
 };
 
 // Also refresh on page load
-window.addEventListener('load', refreshPattern);
+window.addEventListener('load', () => {
+    refreshPattern();
+});
 
 // Initialize dat.gui
 const gui = new dat.GUI({ autoplace: false });
@@ -366,6 +410,7 @@ visualFolder.add(params, 'minCircleSize', 0.0, 10.0).name('Circle Size').onChang
 visualFolder.add(params, 'circleStrength', 0.0, 3.0).name('Circle Strength').onChange(updateUniforms);
 visualFolder.add(params, 'distortX', 0.0, 50.0).name('Distort-X').onChange(updateUniforms);
 visualFolder.add(params, 'distortY', 0.0, 50.0).name('Distort-Y').onChange(updateUniforms);
+visualFolder.add({ refreshPattern: refreshPattern }, 'refreshPattern').name('🎲 New Pattern');
 
 visualFolder.open();
 
@@ -392,18 +437,127 @@ kickFolder.add(params, 'kickSensitivity', 0.5, 5.0).name('Kick Sensitivity').onC
 kickFolder.add(params, 'kickBeatFlash', 0.5, 5.0).name('Kick Beat Flash').onChange(updateUniforms);
 kickFolder.open();
 
+// Enhanced Shader Effects
+const shaderFolder = gui.addFolder('🎨 Shader Effects');
+shaderFolder.add(params, 'noiseAmount', 0.0, 1.0).name('Perlin Noise').onChange(updateUniforms);
+shaderFolder.add(params, 'warpStrength', 0.0, 2.0).name('Warp Strength').onChange(updateUniforms);
+shaderFolder.add(params, 'chromaticAberration', 0.0, 1.0).name('Chromatic Aberration').onChange(updateUniforms);
+shaderFolder.add(params, 'vignetteStrength', 0.0, 2.0).name('Vignette').onChange(updateUniforms);
+shaderFolder.add(params, 'trailDecay', 0.8, 0.99).name('Trail Decay').onChange(updateUniforms);
+shaderFolder.open();
+
+// Post-Processing Effects
+const postProcessFolder = gui.addFolder('✨ Post-Processing');
+postProcessFolder.add(params, 'postProcessingEnabled').name('Enable Post-FX').onChange(updateUniforms);
+postProcessFolder.add(params, 'bloomThreshold', 0.0, 1.0).name('Bloom Threshold').onChange(updateUniforms);
+postProcessFolder.add(params, 'bloomIntensity', 0.0, 3.0).name('Bloom Intensity').onChange(updateUniforms);
+postProcessFolder.add(params, 'glitchIntensity', 0.0, 1.0).name('Glitch Effect').onChange(updateUniforms);
+postProcessFolder.open();
+
+// Layered Rendering
+const layerFolder = gui.addFolder('🧅 Layered Rendering');
+layerFolder.add(params, 'layeredRendering').name('Enable Layers').onChange(updateUniforms);
+layerFolder.add(params, 'backgroundLayer').name('Background Layer').onChange(updateUniforms);
+layerFolder.add(params, 'foregroundLayer').name('Foreground Layer').onChange(updateUniforms);
+layerFolder.add(params, 'afterimageEffect').name('Afterimage Effect').onChange(updateUniforms);
+layerFolder.open();
+
+// Quick Action Controls
+const actionFolder = gui.addFolder('⚡ Quick Actions');
+actionFolder.add({ refreshPattern: refreshPattern }, 'refreshPattern').name('🎲 Randomize');
+actionFolder.add({ 
+    testBloom: () => { 
+        params.bloomStrength = params.bloomStrength > 2 ? 0.5 : 4.0; 
+        updateUniforms();
+        // Update GUI
+        for (let f in gui.__folders) {
+            const folder = gui.__folders[f];
+            for (let i in folder.__controllers) {
+                folder.__controllers[i].updateDisplay();
+            }
+        }
+    } 
+}, 'testBloom').name('💥 Toggle Bloom');
+actionFolder.add({
+    testSpeed: () => { 
+        params.timeScale = params.timeScale > 1 ? 0.2 : 2.0; 
+        updateUniforms();
+        // Update GUI
+        for (let f in gui.__folders) {
+            const folder = gui.__folders[f];
+            for (let i in folder.__controllers) {
+                folder.__controllers[i].updateDisplay();
+            }
+        }
+    }
+}, 'testSpeed').name('⚡ Toggle Speed');
+actionFolder.add({
+    testPreset: () => {
+        const presets = ['ambient', 'energetic', 'minimal', 'abstract', 'retro', 'organic'];
+        const randomPreset = presets[Math.floor(Math.random() * presets.length)];
+        applyPreset(randomPreset);
+        console.log('Applied preset:', randomPreset);
+    }
+}, 'testPreset').name('🎨 Random Preset');
+actionFolder.add({
+    fixGraininess: () => {
+        // Reduce settings that cause graininess
+        params.trebleResponse = 0.0;
+        params.noiseAmount = 0.05;
+        params.grainAmount = 0.05;
+        params.audioSmoothing = 0.02; // Very smooth
+        updateUniforms();
+        updateAudioSettings();
+        // Update GUI
+        for (let f in gui.__folders) {
+            const folder = gui.__folders[f];
+            for (let i in folder.__controllers) {
+                folder.__controllers[i].updateDisplay();
+            }
+        }
+        console.log('Applied anti-graininess settings');
+    }
+}, 'fixGraininess').name('🛠️ Fix Graininess');
+actionFolder.add({
+    killTVStatic: () => {
+        // Completely disable all noise/grain effects
+        params.trebleResponse = 0.0;
+        params.noiseAmount = 0.0;
+        params.grainAmount = 0.0;
+        params.chromaticAberration = 0.0;
+        params.audioSmoothing = 0.01; // Ultra smooth
+        updateUniforms();
+        updateAudioSettings();
+        // Update GUI
+        for (let f in gui.__folders) {
+            const folder = gui.__folders[f];
+            for (let i in folder.__controllers) {
+                folder.__controllers[i].updateDisplay();
+            }
+        }
+        console.log('🚫 KILLED TV STATIC - All noise effects disabled');
+        alert('TV Static effects disabled! Check if the static is gone.');
+    }
+}, 'killTVStatic').name('🚫 KILL TV STATIC');
+actionFolder.open();
+
 const audioFolder = gui.addFolder('Audio Reactive');
 audioFolder.add(params, 'audioReactive').name('Enable Audio Reactive').onChange(updateUniforms);
 audioFolder.add(params, 'audioSensitivity', 0.1, 3.0).name('Sensitivity').onChange(updateUniforms);
 audioFolder.add(params, 'audioIntensity', 0.1, 3.0).name('Intensity').onChange(updateAudioSettings);
-audioFolder.add(params, 'audioSmoothing', 0.05, 0.5).name('Smoothing').onChange(updateAudioSettings);
-audioFolder.add(params, 'bassResponse', 0.0, 5.0).name('Bass Response').onChange(updateUniforms);
-audioFolder.add(params, 'midResponse', 0.0, 3.0).name('Mid Response').onChange(updateUniforms);
-audioFolder.add(params, 'trebleResponse', 0.0, 3.0).name('Treble Response').onChange(updateUniforms);
+audioFolder.add(params, 'audioSmoothing', 0.01, 0.3).name('⚠️ Smoothing (Fix Graininess)').onChange(updateAudioSettings);
+audioFolder.add(params, 'bassResponse', 0.0, 3.0).name('Bass Response').onChange(updateUniforms);
+audioFolder.add(params, 'midResponse', 0.0, 2.0).name('Mid Response').onChange(updateUniforms);
+audioFolder.add(params, 'trebleResponse', 0.0, 1.0).name('Treble Response (Causes Grain)').onChange(updateUniforms);
 audioFolder.open();
 
 // Function to update shader uniforms from GUI values
 function updateUniforms() {
+    if (!program) return;
+    
+    gl.useProgram(program);
+    
+    // Core visual parameters
     gl.uniform1f(timeScaleLocation, params.timeScale);
     gl.uniform1f(patternAmpLocation, params.patternAmp);
     gl.uniform1f(patternFreqLocation, params.patternFreq);
@@ -419,16 +573,71 @@ function updateUniforms() {
     gl.uniform1f(circleStrengthLocation, params.circleStrength);
     gl.uniform1f(distortXLocation, params.distortX);
     gl.uniform1f(distortYLocation, params.distortY);
+    
+    // Enhanced shader effects
+    if (noiseAmountLocation) gl.uniform1f(noiseAmountLocation, params.noiseAmount);
+    if (warpStrengthLocation) gl.uniform1f(warpStrengthLocation, params.warpStrength);
+    if (chromaticAberrationLocation) gl.uniform1f(chromaticAberrationLocation, params.chromaticAberration);
+    if (vignetteStrengthLocation) gl.uniform1f(vignetteStrengthLocation, params.vignetteStrength);
+    
+    // Update audio-reactive uniforms with current audio data (with additional smoothing for visual stability)
+    if (params.audioReactive) {
+        const audioData = getAudioData();
+        
+        // Apply extra smoothing to prevent graininess
+        const smoothBass = Math.max(0, Math.min(1, (audioData.bass || 0) * params.bassResponse));
+        const smoothMid = Math.max(0, Math.min(1, (audioData.mid || 0) * params.midResponse));
+        const smoothTreble = Math.max(0, Math.min(1, (audioData.treble || 0) * params.trebleResponse));
+        const smoothKick = Math.max(0, Math.min(1, (audioData.kickDrum || 0) * params.kickDrumResponse));
+        const smoothBeat = Math.max(0, Math.min(1, (audioData.beat || 0) * params.kickBeatFlash));
+        
+        if (bassLevelLocation) gl.uniform1f(bassLevelLocation, smoothBass);
+        if (midLevelLocation) gl.uniform1f(midLevelLocation, smoothMid);
+        if (trebleLevelLocation) gl.uniform1f(trebleLevelLocation, smoothTreble);
+        if (kickLevelLocation) gl.uniform1f(kickLevelLocation, smoothKick);
+        if (beatFlashLocation) gl.uniform1f(beatFlashLocation, smoothBeat);
+    } else {
+        // Set audio uniforms to 0 when audio reactive is disabled
+        if (bassLevelLocation) gl.uniform1f(bassLevelLocation, 0);
+        if (midLevelLocation) gl.uniform1f(midLevelLocation, 0);
+        if (trebleLevelLocation) gl.uniform1f(trebleLevelLocation, 0);
+        if (kickLevelLocation) gl.uniform1f(kickLevelLocation, 0);
+        if (beatFlashLocation) gl.uniform1f(beatFlashLocation, 0);
+    }
 }
 
 // Function to update audio settings
 function updateAudioSettings() {
     // Update the smoothing factor dynamically
     audioSmoothing.factor = params.audioSmoothing;
+    
+    // Update beat detector sensitivity if it exists
+    if (beatDetector) {
+        beatDetector.sensitivity = params.beatSensitivity;
+        beatDetector.minTimeBetweenBeats = Math.max(50, 300 - (params.kickSensitivity * 50));
+    }
+    
+    // Force immediate uniform update to reflect changes
+    updateUniforms();
 }
 
 function drawScene(){
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    // Check if layered rendering is enabled
+    if (params.layeredRendering) {
+        // Simple layered rendering approximation
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        
+        // Render with different blend modes if afterimage is enabled
+        if (params.afterimageEffect) {
+            gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        }
+        
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.disable(gl.BLEND);
+    } else {
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
 }
 
 // Animation loop
@@ -451,9 +660,13 @@ function render(timestamp) {
           // Apply intensity multiplier and reduced modulation amounts for smoother effects
           const intensity = params.audioIntensity;
           modifiedTimeScale += audioData.overall * 0.15 * intensity;  
-          modifiedBloom += audioData.bass * 1.0 * intensity;          
-          modifiedDistortX += audioData.mid * 5.0 * intensity;        
-          modifiedDistortY += audioData.treble * 8.0 * intensity;     
+          modifiedBloom += (audioData.bass || 0) * 1.0 * intensity;          
+          modifiedDistortX += (audioData.mid || 0) * 5.0 * intensity;        
+          modifiedDistortY += (audioData.treble || 0) * 8.0 * intensity;
+          
+          // Enhanced audio reactive modulation
+          modifiedTimeScale += (audioData.kickDrum || 0) * 0.2 * intensity;
+          modifiedBloom += (audioData.beat || 0) * 2.0 * intensity;     
       }
 
       const timeInSeconds = adjustedTime * 0.0035;
@@ -461,10 +674,24 @@ function render(timestamp) {
       gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
       
       // Apply audio reactive uniforms
+      gl.useProgram(program);
       gl.uniform1f(timeScaleLocation, modifiedTimeScale);
       gl.uniform1f(bloomStrengthLocation, modifiedBloom);
       gl.uniform1f(distortXLocation, modifiedDistortX);
       gl.uniform1f(distortYLocation, modifiedDistortY);
+      
+      // Enhanced audio uniforms with live audio data
+      if (bassLevelLocation) gl.uniform1f(bassLevelLocation, (audioData.bass || 0) * params.bassResponse);
+      if (midLevelLocation) gl.uniform1f(midLevelLocation, (audioData.mid || 0) * params.midResponse);
+      if (trebleLevelLocation) gl.uniform1f(trebleLevelLocation, (audioData.treble || 0) * params.trebleResponse);
+      if (kickLevelLocation) gl.uniform1f(kickLevelLocation, (audioData.kickDrum || 0) * params.kickDrumResponse);
+      if (beatFlashLocation) gl.uniform1f(beatFlashLocation, (audioData.beat || 0) * params.kickBeatFlash);
+      
+      // Apply post-processing and shader effects (audio influence disabled to prevent TV static)
+      if (noiseAmountLocation) gl.uniform1f(noiseAmountLocation, params.noiseAmount); // No audio influence on noise
+      if (warpStrengthLocation) gl.uniform1f(warpStrengthLocation, params.warpStrength + (audioData.bass || 0) * 0.2);
+      if (chromaticAberrationLocation) gl.uniform1f(chromaticAberrationLocation, params.chromaticAberration + (audioData.beat || 0) * 0.05);
+      if (vignetteStrengthLocation) gl.uniform1f(vignetteStrengthLocation, params.vignetteStrength);
       
       // FPS calculation
       frameCount++;
@@ -519,6 +746,33 @@ function updateCanvasFormat() {
     }
     
     updateCanvasSize();
+}
+
+// Canvas size update function
+function updateCanvasSize() {
+    canvas.width = params.canvasWidth;
+    canvas.height = params.canvasHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    
+    // Update resolution uniform if program exists
+    if (program && resolutionLocation) {
+        gl.useProgram(program);
+        gl.uniform2f(resolutionLocation, canvas.width, canvas.height);
+    }
+    
+    console.log('Canvas resized to:', canvas.width, 'x', canvas.height);
+}
+
+// Refresh pattern function
+function refreshPattern() {
+    randomSeed = Math.random() * 1000;
+    
+    if (program && seedLocation) {
+        gl.useProgram(program);
+        gl.uniform1f(seedLocation, randomSeed);
+    }
+    
+    console.log('Pattern refreshed with seed:', randomSeed);
 }
 
 // Audio reactive functions
@@ -1118,6 +1372,15 @@ function renderLive(timestamp) {
                     const beatIntensity = 1.0 - (timeSinceBeat / 150);
                     modifiedBloom += beatIntensity * 4.0 * kickBeatMultiplier;
                     modifiedPatternAmp += beatIntensity * 15.0 * kickBeatMultiplier;
+                    
+                    // Tempo-synced camera shake effect
+                    if (currentBPM > 0) {
+                        const beatPhase = (Date.now() % (60000 / currentBPM)) / (60000 / currentBPM);
+                        const shakeAmount = beatIntensity * 0.01 * params.visualResponse;
+                        // Beat-synchronized visual distortion
+                        modifiedDistortX += Math.sin(beatPhase * Math.PI * 2) * shakeAmount * 10;
+                        modifiedDistortY += Math.cos(beatPhase * Math.PI * 2) * shakeAmount * 15;
+                    }
                 }
             }
         }
@@ -1167,23 +1430,49 @@ function renderLive(timestamp) {
     }
 }
 
+// Global function to start the visualizer (called from HTML onclick)
+function startVisualizer() {
+    console.log('Start visualizer called!');
+    
+    const overlay = document.getElementById('intro-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+        console.log('Overlay hidden');
+    }
+    
+    // Auto-enable live mode for immediate use (with safety check)
+    if (typeof params !== 'undefined' && params && !params.liveMode) {
+        params.liveMode = true;
+        if (typeof toggleLiveMode === 'function') {
+            toggleLiveMode();
+        }
+    }
+}
+
+// Make it globally available
+window.startVisualizer = startVisualizer;
+
 // Initialize intro overlay controls and button handlers
-document.addEventListener('DOMContentLoaded', () => {
+function initializeStartButton() {
     const overlay = document.getElementById('intro-overlay');
     const startButton = document.getElementById('start-button');
     
+    console.log('Initializing start button...', { overlay, startButton });
+    
     if (startButton) {
-        startButton.addEventListener('click', () => {
-            if (overlay) {
-                overlay.style.display = 'none';
-            }
-            // Auto-enable live mode for immediate use
-            if (!params.liveMode) {
-                params.liveMode = true;
-                toggleLiveMode();
-            }
+        startButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            startVisualizer();
         });
+        console.log('Start button event listener added');
+    } else {
+        console.error('Start button not found!');
     }
+}
+
+// Initialize all UI controls
+function initializeAllControls() {
+    initializeStartButton();
     
     // Live performance button handlers
     const micInputBtn = document.getElementById('micInputBtn');
@@ -1231,11 +1520,37 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Update button states periodically
     setInterval(updateButtonStates, 1000);
-});
+}
 
-// Start the animation loop with live performance enhancements
-isPlaying = true;
-refreshPattern();
-updateUniforms();
-// Use the enhanced render function for live performance
-animationID = requestAnimationFrame(renderLive);
+// Try to initialize immediately and also on DOM content loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeAllControls);
+} else {
+    initializeAllControls();
+}
+
+// Initialize everything properly
+function initializeVisualizerSystem() {
+    if (!program) {
+        console.warn('Program not ready, skipping visualization initialization');
+        return;
+    }
+    
+    // Start the animation loop with live performance enhancements
+    isPlaying = true;
+    refreshPattern();
+    updateUniforms();
+    
+    // Use the enhanced render function for live performance
+    animationID = requestAnimationFrame(renderLive);
+}
+
+// Call initialization when everything is ready
+if (program) {
+    // Initialize immediately if shaders compiled successfully
+    setTimeout(() => {
+        initializeVisualizerSystem();
+    }, 100);
+} else {
+    console.error('Cannot start visualizer: shader compilation failed');
+}

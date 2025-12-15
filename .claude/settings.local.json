@@ -5,7 +5,8 @@
       "WebFetch(domain:spencersmolen.github.io)",
       "WebFetch(domain:kriipke.github.io)",
       "WebSearch",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(open:*)"
     ],
     "deny": [],
     "ask": []

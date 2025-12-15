@@ -150,14 +150,29 @@ window.addEventListener('resize', function() {
   gl.viewport(0, 0, canvas.width, canvas.height);
 });
 
-document.getElementById('randomizeBtn').addEventListener('click', () => randomizeInputs());
-document.getElementById('playPauseBtn').addEventListener('click', () => togglePlayPause());
-document.getElementById('exportVideoBtn').addEventListener('click', () => toggleVideoRecord());
-document.getElementById('saveBtn').addEventListener('click', () => saveImage());
-document.getElementById('toggleMusicBtn').addEventListener('click', () => toggleMusic());
-document.getElementById('zen-mode-button').addEventListener('click', () => toggleZenMode());
-document.getElementById('upload-audio-btn').addEventListener('click', () => triggerAudioUpload());
-document.getElementById('preset-mode-button').addEventListener('click', () => showPresetModal());
+// Add event listeners with null checks
+const randomizeBtn = document.getElementById('randomizeBtn');
+if (randomizeBtn) randomizeBtn.addEventListener('click', () => randomizeInputs());
+
+const playPauseBtn = document.getElementById('playPauseBtn');
+if (playPauseBtn) playPauseBtn.addEventListener('click', () => togglePlayPause());
+
+const exportVideoBtn = document.getElementById('exportVideoBtn');
+if (exportVideoBtn) exportVideoBtn.addEventListener('click', () => toggleVideoRecord());
+
+const saveBtn = document.getElementById('saveBtn');
+if (saveBtn) saveBtn.addEventListener('click', () => saveImage());
+
+const toggleMusicBtn = document.getElementById('toggleMusicBtn');
+if (toggleMusicBtn) toggleMusicBtn.addEventListener('click', () => toggleMusic());
+
+const zenModeButton = document.getElementById('zen-mode-button');
+if (zenModeButton) zenModeButton.addEventListener('click', () => toggleZenMode());
+
+const uploadAudioBtn = document.getElementById('upload-audio-btn');
+if (uploadAudioBtn) uploadAudioBtn.addEventListener('click', () => triggerAudioUpload());
+const presetModeButton = document.getElementById('preset-mode-button');
+if (presetModeButton) presetModeButton.addEventListener('click', () => showPresetModal());
 
 //intro overlay info screen
 

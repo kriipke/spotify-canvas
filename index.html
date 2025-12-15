@@ -49,7 +49,7 @@
               <li>📷: save frame [s]</li>
             </ul>
           </div>
-          <button id="start-button">Start Live Visualizer ✨</button>
+          <button id="start-button" onclick="startVisualizer()">Start Live Visualizer ✨</button>
         </div>
     </div>
 
@@ -426,12 +426,93 @@
         }
     </script>
 
+    <!-- Additional shaders for layered effects -->
+    <script id="matcapVertexShader" type="x-shader/x-vertex">
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+            vUv = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="matcapFragmentShader" type="x-shader/x-fragment">
+        precision highp float;
+        uniform vec2 resolution;
+        uniform float time;
+        uniform float bassLevel;
+        uniform float kickLevel;
+        uniform vec3 colorTint;
+        varying vec2 vUv;
+        
+        // MatCap style reflective shader
+        vec3 getMatCapColor(vec2 uv, float normalZ) {
+            vec2 matcapUV = vec2(uv.x, 1.0 - uv.y);
+            float fresnel = pow(1.0 - normalZ, 2.0);
+            
+            // Metallic base with audio-reactive hue shift
+            vec3 baseColor = vec3(0.8, 0.9, 1.0);
+            float hueShift = bassLevel * 6.28; // Full color wheel based on bass
+            
+            // HSL color rotation
+            vec3 k = vec3(0.57735, 0.57735, 0.57735);
+            float cosAngle = cos(hueShift);
+            vec3 rotatedColor = baseColor * cosAngle + cross(k, baseColor) * sin(hueShift) + k * dot(k, baseColor) * (1.0 - cosAngle);
+            
+            return mix(rotatedColor, vec3(1.0), fresnel * 0.5) * colorTint;
+        }
+        
+        void main() {
+            vec2 uv = vUv;
+            float normalZ = 0.5 + kickLevel * 0.3;
+            vec3 color = getMatCapColor(uv, normalZ);
+            gl_FragColor = vec4(color, 1.0);
+        }
+    </script>
+
+    <script id="fresnelVertexShader" type="x-shader/x-vertex">
+        attribute vec2 position;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        void main() {
+            vUv = position * 0.5 + 0.5;
+            vNormal = normalize(vec3(position, 1.0));
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="fresnelFragmentShader" type="x-shader/x-fragment">
+        precision highp float;
+        uniform vec2 resolution;
+        uniform float time;
+        uniform float midLevel;
+        uniform float trebleLevel;
+        uniform vec3 glowColor;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        
+        void main() {
+            vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
+            float fresnel = pow(1.0 - dot(vNormal, viewDir), 2.0 + midLevel * 3.0);
+            
+            vec3 color = glowColor * fresnel * (1.0 + trebleLevel * 2.0);
+            gl_FragColor = vec4(color, fresnel * 0.8);
+        }
+    </script>
+
     <script id="fragmentShader" type="x-shader/x-fragment">
         precision highp float;
 
         uniform vec2 resolution;
         uniform float time;
         uniform float seed;
+        
+        // Audio reactive uniforms
+        uniform float bassLevel;
+        uniform float midLevel;
+        uniform float trebleLevel;
+        uniform float kickLevel;
+        uniform float beatFlash;
         
         // GUI-controlled parameters
         uniform float timeScale;
@@ -450,6 +531,12 @@
         uniform float distortX;
         uniform float distortY;
         
+        // Enhanced visual effect uniforms
+        uniform float noiseAmount;
+        uniform float warpStrength;
+        uniform float chromaticAberration;
+        uniform float vignetteStrength;
+        
         // Noise functions for 3D simplex noise
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -464,6 +551,46 @@
         // Pseudo-random function for noise generation
         float random(vec2 st) {
             return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+        }
+        
+        // Audio-reactive displacement helper
+        float getDisplacement(vec2 uv, float amplitude) {
+            float kickPulse = kickLevel * beatFlash;
+            return sin(uv.x * 10.0 + time * 0.1) * amplitude * (1.0 + kickPulse);
+        }
+        
+        // HSL to RGB conversion for dynamic color shifting
+        vec3 hsl2rgb(vec3 hsl) {
+            float h = hsl.x * 6.0;
+            float s = hsl.y;
+            float l = hsl.z;
+            
+            float c = (1.0 - abs(2.0 * l - 1.0)) * s;
+            float x = c * (1.0 - abs(mod(h, 2.0) - 1.0));
+            float m = l - c / 2.0;
+            
+            vec3 rgb;
+            if (h < 1.0) rgb = vec3(c, x, 0.0);
+            else if (h < 2.0) rgb = vec3(x, c, 0.0);
+            else if (h < 3.0) rgb = vec3(0.0, c, x);
+            else if (h < 4.0) rgb = vec3(0.0, x, c);
+            else if (h < 5.0) rgb = vec3(x, 0.0, c);
+            else rgb = vec3(c, 0.0, x);
+            
+            return rgb + m;
+        }
+        
+        
+        // Camera feedback loop effect
+        vec3 feedbackEffect(vec2 uv, vec3 color) {
+            vec2 feedbackUV = uv + vec2(
+                sin(time * 0.1 + bassLevel * 10.0) * 0.01,
+                cos(time * 0.15 + kickLevel * 8.0) * 0.01
+            );
+            
+            // Simulate previous frame feedback using simple noise
+            float feedback = sin(feedbackUV.x * 20.0 + time * 0.5) * sin(feedbackUV.y * 20.0 + time * 0.7) * 0.3;
+            return mix(color, vec3(feedback), 0.1 + bassLevel * 0.2);
         }
         
         // 3D Simplex noise implementation
@@ -598,8 +725,12 @@
             // Adjust aspect ratio
             uv.x *= resolution.x / resolution.y;
             
-            // Apply timeScale from GUI
-            float slowTime = time * timeScale;
+            // Apply vertex displacement for audio-reactive warping  
+            vec2 displacedUV = uv;
+            
+            // Apply timeScale from GUI with audio modulation
+            float audioTimeScale = timeScale * (1.0 + bassLevel * 0.3);
+            float slowTime = time * audioTimeScale;
             
             // Create seed-influenced flow vectors for different pattern on each refresh
             vec2 flow1 = vec2(
@@ -617,7 +748,7 @@
                 cos(slowTime * 0.18 + 1.2 + seed * 0.37) * 0.25 + cos(slowTime * 0.25 + seed * 0.27) * 0.15
             );
             
-            float noiseScale1 = 10000.0;
+            float noiseScale1 = 3.0; // Reduced from 10000 to eliminate static
                         
             // Main light layer with enhanced 3D liquid motion - using 3D noise
             // The third component determines how the pattern changes over time
@@ -765,18 +896,41 @@
             
             float finalValue = combinedPattern;
             
-            // Use the color variation and apply color tint from GUI
-            vec3 color = finalValue * colorVariation * colorTint;
+            // Dynamic HSL color shifting based on frequency content
+            float hueShift = (bassLevel * 0.3 + midLevel * 0.4 + trebleLevel * 0.3) * 2.0;
+            vec3 hslColor = vec3(hueShift, 0.7 + bassLevel * 0.3, 0.5 + finalValue * 0.5);
+            vec3 dynamicColor = hsl2rgb(hslColor);
+            
+            // Blend dynamic color with original variation
+            vec3 blendedColor = mix(colorVariation, dynamicColor, 0.4 + kickLevel * 0.3);
+            
+            // Apply color tint from GUI
+            vec3 color = finalValue * blendedColor * colorTint;
             
             // Bloom with GUI-controlled bloomStrength
             float bloomThreshold = 1.0;
             float bloom = smoothstep(0.0, bloomThreshold, finalValue) * bloomStrength;
             color += bloom;
             
-            // Grain with GUI-controlled grainAmount
-            vec2 noiseCoord = uv;
-            float noise = random(noiseCoord + time * 0.0015) * grainAmount;        
-            color = color + vec3(noise);
+            // Grain effect - COMPLETELY STATIC-FREE VERSION
+            if (grainAmount > 0.001 || noiseAmount > 0.001) {
+                vec2 noiseCoord = displacedUV;
+                // Use FIXED noise pattern based only on position, not time
+                float staticNoise = sin(noiseCoord.x * 157.0) * sin(noiseCoord.y * 113.0);
+                float audioNoise = sin(noiseCoord.x * 50.0) * sin(noiseCoord.y * 50.0) * noiseAmount * 0.05;
+                float regularNoise = staticNoise * grainAmount * 0.02;
+                color = color + vec3(audioNoise + regularNoise);
+            }
+            
+            // Chromatic aberration effect (simplified - using color shifts instead of texture sampling)
+            if (chromaticAberration > 0.0) {
+                float aberration = chromaticAberration * (kickLevel + beatFlash * 0.5) * 0.01;
+                color.r += aberration;
+                color.b -= aberration;
+            }
+            
+            // Camera feedback effect (disabled to prevent TV static)
+            // color = feedbackEffect(uv, color);
 
             // Saturation with GUI control
             float luminance = dot(color, vec3(0.299, 0.587, 0.114));
@@ -796,6 +950,138 @@
                 color = mix(color, overlayBlended, overlayOpacity);
             }
             
+            // Vignette effect with audio reactivity
+            if (vignetteStrength > 0.0) {
+                vec2 vignetteUV = uv - 0.5;
+                float vignetteRadius = length(vignetteUV);
+                float vignette = 1.0 - smoothstep(0.3, 0.7 + bassLevel * 0.2, vignetteRadius * vignetteStrength);
+                color *= vignette;
+            }
+            
+            // Beat flash effect
+            if (beatFlash > 0.0) {
+                color += vec3(beatFlash * kickLevel) * 0.3;
+            }
+            
+            gl_FragColor = vec4(color, 1.0);
+        }
+    </script>
+    
+    <!-- Afterimage/Trail shader -->
+    <script id="afterimageVertexShader" type="x-shader/x-vertex">
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+            vUv = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="afterimageFragmentShader" type="x-shader/x-fragment">
+        precision highp float;
+        uniform sampler2D currentFrame;
+        uniform sampler2D previousFrame;
+        uniform float trailDecay;
+        uniform float beatFlash;
+        varying vec2 vUv;
+        
+        void main() {
+            vec4 current = texture2D(currentFrame, vUv);
+            vec4 previous = texture2D(previousFrame, vUv);
+            
+            // Trail effect with beat-reactive decay
+            float decay = trailDecay * (1.0 + beatFlash * 0.3);
+            vec4 trail = mix(previous * decay, current, 0.8);
+            
+            gl_FragColor = trail;
+        }
+    </script>
+    
+    <!-- Bloom post-processing shader -->
+    <script id="bloomVertexShader" type="x-shader/x-vertex">
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+            vUv = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="bloomFragmentShader" type="x-shader/x-fragment">
+        precision highp float;
+        uniform sampler2D inputTexture;
+        uniform vec2 resolution;
+        uniform float bloomThreshold;
+        uniform float bloomIntensity;
+        uniform float bassLevel;
+        varying vec2 vUv;
+        
+        void main() {
+            vec2 texelSize = 1.0 / resolution;
+            vec4 color = texture2D(inputTexture, vUv);
+            
+            // Extract bright areas for bloom
+            float brightness = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
+            float threshold = 0.5 - bassLevel * 0.2; // Dynamic threshold
+            
+            if (brightness > threshold) {
+                // Simple bloom effect
+                vec4 bloom = vec4(0.0);
+                
+                for(int i = -2; i <= 2; i++) {
+                    for(int j = -2; j <= 2; j++) {
+                        vec2 offset = vec2(float(i), float(j)) * texelSize * 2.0;
+                        bloom += texture2D(inputTexture, vUv + offset) * 0.04;
+                    }
+                }
+                
+                gl_FragColor = color + bloom * bloomIntensity;
+            } else {
+                gl_FragColor = color;
+            }
+        }
+    </script>
+
+    <!-- RGB Shift / Glitch shader -->
+    <script id="glitchVertexShader" type="x-shader/x-vertex">
+        attribute vec2 position;
+        varying vec2 vUv;
+        void main() {
+            vUv = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    </script>
+
+    <script id="glitchFragmentShader" type="x-shader/x-fragment">
+        precision highp float;
+        uniform sampler2D inputTexture;
+        uniform float time;
+        uniform float glitchIntensity;
+        uniform float beatFlash;
+        varying vec2 vUv;
+        
+        float rand(vec2 co) {
+            return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+        }
+        
+        void main() {
+            vec2 uv = vUv;
+            float glitch = glitchIntensity + beatFlash * 0.5;
+            
+            // RGB shift
+            float shift = glitch * 0.01;
+            float r = texture2D(inputTexture, uv + vec2(shift, 0.0)).r;
+            float g = texture2D(inputTexture, uv).g;
+            float b = texture2D(inputTexture, uv - vec2(shift, 0.0)).b;
+            
+            // Scanlines
+            float scanline = sin(uv.y * 800.0) * 0.05 * glitch;
+            
+            // Random noise (COMPLETELY STATIC-FREE)
+            float staticPattern = sin(uv.x * 543.21) * sin(uv.y * 234.56);
+            float noise = staticPattern * 0.005 * glitch;
+            
+            vec3 color = vec3(r, g, b) + scanline + noise;
             gl_FragColor = vec4(color, 1.0);
         }
     </script>
