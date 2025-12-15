@@ -75,7 +75,7 @@ canvas {
   background-color: black;
   opacity: 0.9;
   margin: 0;
-  z-index: 10;
+  z-index: 100; /* Increased to ensure it stays above live mode indicator */
   float: right;
   margin-right: 0 !important;
 }
@@ -506,7 +506,7 @@ a, a:visited{
   }
 }
 
-/* Spotify Canvas Generator Styles */
+/* Live Performance Controls */
 #canvas-controls-container {
   position: fixed;
   top: 10px;
@@ -514,7 +514,7 @@ a, a:visited{
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 90;
+  z-index: 110; /* Higher than live mode indicator */
 }
 
 #canvas-controls-container .gui-button {
@@ -1124,15 +1124,17 @@ input[type="range"]::-moz-range-thumb {
   background: linear-gradient(135deg, rgba(0, 255, 150, 0.9), rgba(0, 200, 120, 0.9));
   color: #000;
   font-family: 'Courier New', monospace;
-  font-size: 18px;
+  font-size: 16px; /* Reduced from 18px */
   font-weight: bold;
-  padding: 12px;
+  padding: 8px 12px; /* Reduced vertical padding */
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 2px;
-  z-index: 200;
+  z-index: 50; /* Reduced from 200 to stay below GUI controls */
   box-shadow: 0 4px 20px rgba(0, 255, 150, 0.4);
   animation: pulse-glow 2s infinite;
+  pointer-events: none; /* Allow clicks to pass through */
+  margin-bottom: 10px; /* Add some spacing from other elements */
 }
 
 #beatIndicatorDiv {

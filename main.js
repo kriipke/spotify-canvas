@@ -135,16 +135,19 @@ const audioSmoothing = {
     dampening: 0.95 // Gradual reduction when no strong signal
 };
 
-// Advanced Audio Analysis for Live Performance
+// Advanced Audio Analysis for Live Performance - KICK DRUM BEAT DETECTION
 class BeatDetector {
     constructor(analyser) {
         this.analyser = analyser;
         this.bufferSize = analyser.fftSize;
         this.energyHistory = new Array(43).fill(0); // ~1 second at 60fps
+        this.kickEnergyHistory = new Array(20).fill(0); // Shorter history for kick responsiveness
         this.variance = 0;
         this.localEnergyAverage = 0;
-        this.sensitivity = 1.3;
-        this.minTimeBetweenBeats = 200; // ms
+        this.kickVariance = 0;
+        this.kickEnergyAverage = 0;
+        this.sensitivity = 1.8; // Increased sensitivity for kick detection
+        this.minTimeBetweenBeats = 150; // Reduced for faster kick response (400ms = 150 BPM)
         this.lastBeatTime = 0;
     }
     
@@ -152,29 +155,73 @@ class BeatDetector {
         const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
         this.analyser.getByteFrequencyData(dataArray);
         
-        // Focus on bass frequencies (20-250Hz) for house music
-        const bassEnd = Math.floor((250 / 22050) * this.analyser.frequencyBinCount);
-        let energy = 0;
+        // Calculate sample rate and bin size for precise kick drum targeting
+        const sampleRate = (this.analyser.context && this.analyser.context.sampleRate) || 44100;
+        const binSize = sampleRate / (this.analyser.fftSize);
         
-        for (let i = 0; i < bassEnd; i++) {
-            energy += dataArray[i] * dataArray[i];
+        // Focus specifically on kick drum frequencies (40-100Hz)
+        const kickLowBin = Math.floor(40 / binSize);
+        const kickHighBin = Math.floor(100 / binSize);
+        
+        // Calculate kick drum energy with heavy weighting
+        let kickEnergy = 0;
+        let kickBinCount = kickHighBin - kickLowBin;
+        
+        for (let i = kickLowBin; i < kickHighBin; i++) {
+            // Weight the 50-70Hz range more heavily (primary kick frequencies)
+            const freq = i * binSize;
+            let weight = 1.0;
+            if (freq >= 50 && freq <= 70) {
+                weight = 3.0; // Heavy emphasis on primary kick range
+            } else if (freq >= 40 && freq <= 50) {
+                weight = 2.0; // Medium emphasis on sub-kick
+            } else if (freq >= 70 && freq <= 100) {
+                weight = 1.5; // Light emphasis on kick harmonics
+            }
+            
+            kickEnergy += dataArray[i] * dataArray[i] * weight;
         }
-        energy = energy / bassEnd;
+        kickEnergy = kickEnergy / kickBinCount;
         
-        // Update energy history
+        // Also calculate general bass energy for backup detection
+        const bassEnd = Math.floor((250 / (sampleRate/2)) * this.analyser.frequencyBinCount);
+        let bassEnergy = 0;
+        for (let i = 0; i < bassEnd; i++) {
+            bassEnergy += dataArray[i] * dataArray[i];
+        }
+        bassEnergy = bassEnergy / bassEnd;
+        
+        // Use kick energy as primary, bass energy as secondary
+        let energy = (kickEnergy * 0.8) + (bassEnergy * 0.2);
+        
+        // Update both general and kick-specific energy histories
         this.energyHistory.push(energy);
         this.energyHistory.shift();
         
-        // Calculate local energy average and variance
+        this.kickEnergyHistory.push(kickEnergy);
+        this.kickEnergyHistory.shift();
+        
+        // Calculate local energy averages and variances
         this.localEnergyAverage = this.energyHistory.reduce((a, b) => a + b) / this.energyHistory.length;
         this.variance = this.energyHistory.reduce((acc, val) => acc + Math.pow(val - this.localEnergyAverage, 2), 0) / this.energyHistory.length;
         
-        // Beat detection algorithm
-        const C = -0.0025714 * this.variance + 1.5142857;
-        const threshold = C * this.localEnergyAverage;
+        this.kickEnergyAverage = this.kickEnergyHistory.reduce((a, b) => a + b) / this.kickEnergyHistory.length;
+        this.kickVariance = this.kickEnergyHistory.reduce((acc, val) => acc + Math.pow(val - this.kickEnergyAverage, 2), 0) / this.kickEnergyHistory.length;
+        
+        // Dual beat detection algorithm - kick-focused + general backup
+        const kickC = -0.003 * this.kickVariance + 1.8; // More aggressive for kick
+        const kickThreshold = kickC * this.kickEnergyAverage;
+        
+        const generalC = -0.0025714 * this.variance + 1.5142857;
+        const generalThreshold = generalC * this.localEnergyAverage;
+        
         const currentTime = Date.now();
         
-        if (energy > threshold && 
+        // Prioritize kick drum detection, fall back to general if needed
+        const kickBeatDetected = kickEnergy > kickThreshold;
+        const generalBeatDetected = energy > generalThreshold;
+        
+        if ((kickBeatDetected || (generalBeatDetected && kickEnergy > this.kickEnergyAverage * 0.7)) && 
             currentTime - this.lastBeatTime > this.minTimeBetweenBeats) {
             this.lastBeatTime = currentTime;
             return true;
@@ -271,13 +318,21 @@ const params = {
     bpmSync: true,
     audioReactive: true, // On by default for live use
     audioSensitivity: 1.5,
-    bassResponse: 2.0,    // Enhanced bass for house music
-    midResponse: 1.0,
-    trebleResponse: 0.8,
-    audioSmoothing: 0.1,  // Faster response for live use
-    audioIntensity: 1.2,  // Higher intensity for live
-    beatSensitivity: 1.3,
-    visualResponse: 2.0,  // How much visuals respond to beats
+    
+    // KICK DRUM FOCUSED PARAMETERS
+    kickDrumResponse: 3.0,    // Primary kick drum response multiplier
+    kickSensitivity: 2.5,     // How sensitive to kick drum changes
+    kickBeatFlash: 2.0,       // How much kick beats flash the visuals
+    
+    // Secondary frequency responses (reduced for kick focus)
+    bassResponse: 1.0,        // General bass (reduced from 2.0)
+    midResponse: 0.3,         // Mid frequencies (heavily reduced)
+    trebleResponse: 0.2,      // Treble frequencies (minimal)
+    
+    audioSmoothing: 0.1,      // Faster response for live use
+    audioIntensity: 1.2,      // Higher intensity for live
+    beatSensitivity: 1.8,     // Increased beat sensitivity for kicks
+    visualResponse: 2.5,      // Enhanced visual response to beats
 };
 
 // Also refresh on page load
@@ -329,6 +384,13 @@ liveFolder.add(params, 'bpmSync').name('BPM Sync').onChange(updateAudioSettings)
 liveFolder.add(params, 'beatSensitivity', 0.5, 3.0).name('Beat Sensitivity').onChange(updateAudioSettings);
 liveFolder.add(params, 'visualResponse', 0.5, 5.0).name('Visual Response').onChange(updateUniforms);
 liveFolder.open();
+
+// Kick Drum Controls
+const kickFolder = gui.addFolder('🥁 Kick Drum Focus');
+kickFolder.add(params, 'kickDrumResponse', 0.5, 5.0).name('Kick Response').onChange(updateUniforms);
+kickFolder.add(params, 'kickSensitivity', 0.5, 5.0).name('Kick Sensitivity').onChange(updateAudioSettings);
+kickFolder.add(params, 'kickBeatFlash', 0.5, 5.0).name('Kick Beat Flash').onChange(updateUniforms);
+kickFolder.open();
 
 const audioFolder = gui.addFolder('Audio Reactive');
 audioFolder.add(params, 'audioReactive').name('Enable Audio Reactive').onChange(updateUniforms);
@@ -846,7 +908,7 @@ function toggleLiveMode() {
     }
 }
 
-// Enhanced audio analysis for live performance
+// Enhanced audio analysis for live performance - KICK DRUM FOCUSED
 function getLiveAudioData() {
     if (!audioAnalyser || !params.audioReactive) {
         return smoothedAudioData;
@@ -854,40 +916,60 @@ function getLiveAudioData() {
     
     audioAnalyser.getByteFrequencyData(audioDataArray);
     
-    // Enhanced frequency analysis for house music
-    const bassRange = Math.floor(audioDataArray.length * 0.08);  // 20-100Hz
-    const subBassRange = Math.floor(audioDataArray.length * 0.04); // 20-50Hz  
+    // Kick drum focused frequency analysis (40-100Hz is the sweet spot for kick drums)
+    const sampleRate = audioContext.sampleRate || 44100;
+    const binSize = sampleRate / (audioAnalyser.fftSize * 2);
+    
+    // Calculate frequency bin ranges for kick drum focus
+    const kickLowBin = Math.floor(40 / binSize);    // 40Hz - kick drum fundamental
+    const kickHighBin = Math.floor(100 / binSize);  // 100Hz - kick drum harmonics
+    const subKickBin = Math.floor(60 / binSize);    // 60Hz - primary kick energy
     const midRange = Math.floor(audioDataArray.length * 0.5);    // 100Hz-8kHz
     const trebleRange = audioDataArray.length;                   // 8kHz-22kHz
     
-    let bass = 0, subBass = 0, mid = 0, treble = 0;
+    let kickDrum = 0, kickFundamental = 0, bass = 0, mid = 0, treble = 0;
     
-    // Calculate sub-bass for kick drum detection
-    for (let i = 0; i < subBassRange; i++) {
-        subBass += audioDataArray[i] * audioDataArray[i];
+    // KICK DRUM FUNDAMENTAL (40-60Hz) - This is where the punch lives
+    for (let i = kickLowBin; i < subKickBin; i++) {
+        const kickWeight = 3.0; // Heavy emphasis on kick fundamental
+        kickFundamental += audioDataArray[i] * audioDataArray[i] * kickWeight;
     }
-    subBass = Math.sqrt(subBass / subBassRange) / 255;
+    kickFundamental = Math.sqrt(kickFundamental / (subKickBin - kickLowBin)) / 255;
     
-    // Calculate bass with emphasis on house music frequencies
-    for (let i = 0; i < bassRange; i++) {
-        const weight = 1.0 - (i / bassRange) * 0.3;
+    // KICK DRUM HARMONICS (60-100Hz) - This adds the body and thump
+    let kickHarmonics = 0;
+    for (let i = subKickBin; i < kickHighBin; i++) {
+        const harmonicWeight = 2.5; // Strong emphasis on kick harmonics
+        kickHarmonics += audioDataArray[i] * audioDataArray[i] * harmonicWeight;
+    }
+    kickHarmonics = Math.sqrt(kickHarmonics / (kickHighBin - subKickBin)) / 255;
+    
+    // Combined kick drum signal (fundamental + harmonics)
+    kickDrum = (kickFundamental * 0.7) + (kickHarmonics * 0.3);
+    
+    // Calculate traditional bass (20-200Hz) but de-emphasize in favor of kick
+    for (let i = 0; i < Math.floor(audioDataArray.length * 0.1); i++) {
+        const weight = 0.5; // Reduced weight for general bass
         bass += audioDataArray[i] * audioDataArray[i] * weight;
     }
-    bass = Math.sqrt(bass / bassRange) / 255;
+    bass = Math.sqrt(bass / Math.floor(audioDataArray.length * 0.1)) / 255;
     
-    // Calculate mids
-    for (let i = bassRange; i < midRange; i++) {
-        mid += audioDataArray[i] * audioDataArray[i];
+    // Calculate mids (de-emphasized for kick drum focus)
+    for (let i = kickHighBin; i < midRange; i++) {
+        const midWeight = 0.3; // Reduced mid response
+        mid += audioDataArray[i] * audioDataArray[i] * midWeight;
     }
-    mid = Math.sqrt(mid / (midRange - bassRange)) / 255;
+    mid = Math.sqrt(mid / (midRange - kickHighBin)) / 255;
     
-    // Calculate treble
+    // Calculate treble (minimal response for kick drum focus)
     for (let i = midRange; i < trebleRange; i++) {
-        treble += audioDataArray[i] * audioDataArray[i];
+        const trebleWeight = 0.2; // Minimal treble response
+        treble += audioDataArray[i] * audioDataArray[i] * trebleWeight;
     }
     treble = Math.sqrt(treble / (trebleRange - midRange)) / 255;
     
-    const overall = (bass + mid + treble) / 3;
+    // Overall is now dominated by kick drum
+    const overall = (kickDrum * 0.7) + (bass * 0.2) + (mid * 0.08) + (treble * 0.02);
     
     // Beat detection
     let beatDetected = false;
@@ -908,25 +990,34 @@ function getLiveAudioData() {
         }
     }
     
-    // Apply response multipliers with live performance optimizations
+    // Apply response multipliers with KICK DRUM EMPHASIS
     const rawData = {
-        bass: bass * params.bassResponse,
-        subBass: subBass * params.bassResponse * 1.5,
-        mid: mid * params.midResponse,
-        treble: treble * params.trebleResponse,
+        kickDrum: kickDrum * params.kickDrumResponse * params.kickSensitivity, // Primary kick response
+        kickFundamental: kickFundamental * params.kickDrumResponse * params.kickSensitivity * 1.2, // Kick fundamental boost
+        kickHarmonics: kickHarmonics * params.kickDrumResponse * params.kickSensitivity * 0.8,     // Kick harmonics boost
+        bass: bass * params.bassResponse,                // General bass (now user controllable)
+        mid: mid * params.midResponse,                   // Mid frequencies (user controllable)
+        treble: treble * params.trebleResponse,          // Treble frequencies (user controllable)
         overall: overall * params.audioSensitivity,
-        beat: beatDetected ? params.visualResponse : 0
+        beat: beatDetected ? params.visualResponse * params.kickBeatFlash : 0  // Kick-focused beat response
     };
     
-    // Faster smoothing for live performance
-    const liveSmoothingFactor = Math.max(0.05, params.audioSmoothing * 0.5);
+    // Faster smoothing for live performance with KICK DRUM FOCUS
+    const liveSmoothingFactor = Math.max(0.05, params.audioSmoothing * 0.3); // Even faster for kick response
+    const kickSmoothingFactor = Math.max(0.02, params.audioSmoothing * 0.1); // Ultra-fast kick response
+    
+    // Primary kick drum smoothing
+    smoothedAudioData.kickDrum = smoothValue(smoothedAudioData.kickDrum || 0, rawData.kickDrum, kickSmoothingFactor);
+    smoothedAudioData.kickFundamental = smoothValue(smoothedAudioData.kickFundamental || 0, rawData.kickFundamental, kickSmoothingFactor);
+    smoothedAudioData.kickHarmonics = smoothValue(smoothedAudioData.kickHarmonics || 0, rawData.kickHarmonics, kickSmoothingFactor);
+    
+    // Secondary frequency smoothing (reduced importance)
     smoothedAudioData.bass = smoothValue(smoothedAudioData.bass, rawData.bass, liveSmoothingFactor);
     smoothedAudioData.mid = smoothValue(smoothedAudioData.mid, rawData.mid, liveSmoothingFactor);
     smoothedAudioData.treble = smoothValue(smoothedAudioData.treble, rawData.treble, liveSmoothingFactor);
     smoothedAudioData.overall = smoothValue(smoothedAudioData.overall, rawData.overall, liveSmoothingFactor);
     
-    // Add beat response
-    smoothedAudioData.subBass = rawData.subBass;
+    // Immediate beat response (no smoothing for instant kick reaction)
     smoothedAudioData.beat = rawData.beat;
     
     return smoothedAudioData;
@@ -991,26 +1082,42 @@ function renderLive(timestamp) {
         let modifiedDistortY = params.distortY;
         let modifiedPatternAmp = params.patternAmp;
         
-        if (params.audioReactive && audioData.overall > 0) {
+        if (params.audioReactive && (audioData.kickDrum > 0 || audioData.overall > 0)) {
             const intensity = params.audioIntensity;
             
-            // Enhanced modulation for live performance
-            modifiedTimeScale += audioData.overall * 0.3 * intensity;
-            modifiedBloom += (audioData.bass + (audioData.subBass || 0)) * 2.5 * intensity;
-            modifiedDistortX += audioData.mid * 8.0 * intensity;
-            modifiedDistortY += audioData.treble * 12.0 * intensity;
-            modifiedPatternAmp += audioData.overall * 15.0 * intensity;
+            // KICK DRUM DRIVEN MODULATION - Primary visual response
+            const kickResponse = audioData.kickDrum || 0;
+            const kickFundamentalResponse = audioData.kickFundamental || 0;
+            const kickHarmonicsResponse = audioData.kickHarmonics || 0;
             
-            // Beat synchronization
+            // Kick drum controls main visual parameters
+            modifiedTimeScale += kickResponse * 0.8 * intensity;  // Kick drives animation speed
+            modifiedBloom += kickResponse * 4.0 * intensity;      // Kick drives bloom intensity
+            modifiedPatternAmp += kickResponse * 25.0 * intensity; // Kick drives pattern amplitude
+            
+            // Kick fundamental controls distortion intensity
+            modifiedDistortX += kickFundamentalResponse * 15.0 * intensity;
+            modifiedDistortY += kickFundamentalResponse * 20.0 * intensity;
+            
+            // Kick harmonics add subtle movement variation
+            modifiedTimeScale += kickHarmonicsResponse * 0.3 * intensity;
+            
+            // Secondary frequencies have minimal impact
+            modifiedDistortX += audioData.mid * 2.0 * intensity;   // Reduced mid impact
+            modifiedDistortY += audioData.treble * 3.0 * intensity; // Reduced treble impact
+            
+            // BEAT SYNCHRONIZATION - Massive kick drum response
             if (audioData.beat && audioData.beat > 0) {
-                modifiedBloom += audioData.beat * 3.0;
-                modifiedPatternAmp += audioData.beat * 20.0;
+                const kickBeatMultiplier = 1.5; // Extra emphasis on kick beats
+                modifiedBloom += audioData.beat * 5.0 * kickBeatMultiplier;
+                modifiedPatternAmp += audioData.beat * 35.0 * kickBeatMultiplier;
                 
-                // Flash effect on beat
+                // Instant flash effect on kick drum beat
                 const timeSinceBeat = Date.now() - lastBeatTime;
-                if (timeSinceBeat < 100) {
-                    const beatIntensity = 1.0 - (timeSinceBeat / 100);
-                    modifiedBloom += beatIntensity * 2.0;
+                if (timeSinceBeat < 150) { // Longer flash for kick drums
+                    const beatIntensity = 1.0 - (timeSinceBeat / 150);
+                    modifiedBloom += beatIntensity * 4.0 * kickBeatMultiplier;
+                    modifiedPatternAmp += beatIntensity * 15.0 * kickBeatMultiplier;
                 }
             }
         }
@@ -1039,6 +1146,13 @@ function renderLive(timestamp) {
             
             const bpmIndicator = document.getElementById('beatIndicator');
             if (bpmIndicator) bpmIndicator.textContent = `BPM: ${currentBPM || '---'}`;
+            
+            // Add kick drum level indicator for debugging
+            const kickLevel = (audioData.kickDrum || 0) * 100;
+            const audioInfo = document.getElementById('audio-info');
+            if (audioInfo && params.liveMode) {
+                audioInfo.textContent = `LIVE MODE - Kick Level: ${kickLevel.toFixed(1)}%`;
+            }
             
             frameCount = 0;
             lastTime = time;
